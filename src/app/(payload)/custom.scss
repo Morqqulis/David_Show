@@ -1,0 +1,80 @@
+/* Custom styles for Payload admin */
+.unauthorized {
+   background-color: oklch(0.141 0.005 285.823);
+}
+
+.unauthorized-page {
+   display: flex;
+   flex-direction: column;
+   align-items: center;
+   justify-content: center;
+   min-height: 80vh;
+   padding: 2rem;
+   text-align: center;
+   gap: 1.5rem;
+
+   &__icon {
+      font-size: 4rem;
+      margin-bottom: 1rem;
+   }
+
+   &__title {
+      font-size: 1.5rem;
+      font-weight: 600;
+      margin: 0;
+      color: var(--theme-text);
+   }
+
+   &__description {
+      color: var(--theme-elevation-500);
+      max-width: 400px;
+      margin: 0;
+      line-height: 1.6;
+   }
+
+   &__actions {
+      display: flex;
+      gap: 1rem;
+      margin-top: 1rem;
+      flex-wrap: wrap;
+      justify-content: center;
+   }
+
+   &__btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.625rem 1.25rem;
+      font-size: 0.875rem;
+      font-weight: 500;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      border: none;
+      outline: none;
+
+      &:disabled {
+         opacity: 0.5;
+         cursor: not-allowed;
+      }
+
+      &--primary {
+         background: var(--theme-elevation-900);
+         color: var(--theme-elevation-0);
+
+         &:hover:not(:disabled) {
+            background: var(--theme-elevation-800);
+         }
+      }
+
+      &--secondary {
+         background: transparent;
+         color: var(--theme-text);
+         border: 1px solid var(--theme-elevation-300);
+
+         &:hover:not(:disabled) {
+            background: var(--theme-elevation-100);
+         }
+      }
+   }
+}
