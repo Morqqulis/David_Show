@@ -14,6 +14,7 @@ import {
   Receipt,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useQueueCounts, type QueueCountsPayload } from '@/hooks/use-ap-queries'
 
 type Item = {
   href: string
@@ -23,35 +24,32 @@ type Item = {
   badgeTone?: 'default' | 'danger'
 }
 
-export function SidebarNav({
-  queueCounts,
-  alertsCount,
-}: {
-  queueCounts: { tba: number; tbc: number; cap: number; apr: number; rfp: number; prc: number; trv: number; cmp: number; all: number }
-  alertsCount: number
-}) {
+export function SidebarNav({ initial }: { initial: QueueCountsPayload }) {
   const pathname = usePathname()
+  const { data } = useQueueCounts(initial)
+  const counts = data?.counts ?? initial.counts
+  const alertsCount = data?.alerts ?? initial.alerts
 
   const groups: { title: string; items: Item[] }[] = [
     {
       title: '',
       items: [
         { href: '/dashboard', label: 'Home', icon: LayoutDashboard },
-        { href: '/requests', label: 'All Requests', icon: Receipt, badge: queueCounts.all },
+        { href: '/requests', label: 'All Requests', icon: Receipt, badge: counts.all },
         { href: '/new', label: 'New Invoice', icon: Plus },
       ],
     },
     {
       title: 'Queues',
       items: [
-        { href: '/queues/to_be_assigned', label: 'To Be Assigned', icon: Inbox, badge: queueCounts.tba },
-        { href: '/queues/to_be_coded', label: 'To Be Coded', icon: ListChecks, badge: queueCounts.tbc },
-        { href: '/queues/conditional_approvals', label: 'Conditional Approvals', icon: ListChecks, badge: queueCounts.cap },
-        { href: '/queues/ap_review', label: 'AP Review', icon: ListChecks, badge: queueCounts.apr },
-        { href: '/queues/ready_for_processing', label: 'Ready for Processing', icon: ListChecks, badge: queueCounts.rfp },
-        { href: '/queues/processed', label: 'Processed', icon: ListChecks, badge: queueCounts.prc },
-        { href: '/queues/treasurer_review', label: 'Treasurer Review', icon: ListChecks, badge: queueCounts.trv },
-        { href: '/queues/completed', label: 'Completed', icon: ListChecks, badge: queueCounts.cmp },
+        { href: '/queues/to_be_assigned', label: 'To Be Assigned', icon: Inbox, badge: counts.to_be_assigned },
+        { href: '/queues/to_be_coded', label: 'To Be Coded', icon: ListChecks, badge: counts.to_be_coded },
+        { href: '/queues/conditional_approvals', label: 'Conditional Approvals', icon: ListChecks, badge: counts.conditional_approvals },
+        { href: '/queues/ap_review', label: 'AP Review', icon: ListChecks, badge: counts.ap_review },
+        { href: '/queues/ready_for_processing', label: 'Ready for Processing', icon: ListChecks, badge: counts.ready_for_processing },
+        { href: '/queues/processed', label: 'Processed', icon: ListChecks, badge: counts.processed },
+        { href: '/queues/treasurer_review', label: 'Treasurer Review', icon: ListChecks, badge: counts.treasurer_review },
+        { href: '/queues/completed', label: 'Completed', icon: ListChecks, badge: counts.completed },
       ],
     },
     {

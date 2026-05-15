@@ -18,6 +18,7 @@ import { computeLine } from '@/backend/lib/tax-math'
 import { saveLine, deleteLine } from '@/backend/actions/invoice-actions'
 import { StageBadge } from './stage-badge'
 import type { StageId } from '@/backend/lib/stage-ids'
+import { useLookups, type LookupsPayload } from '@/hooks/use-ap-queries'
 
 type GL = { id: string | number; code: string; description: string }
 type Tax = { id: string | number; code: string; rate: number; recoverablePct: number }
@@ -64,6 +65,24 @@ export function CodingScreen({
     funds: Dim[]
   }
 }) {
+  // Seed TanStack with SSR data — subsequent Coding screen navigations skip the round-trip.
+  const seed: LookupsPayload = {
+    glAccounts: options.gls as never,
+    taxCodes: options.taxCodes as never,
+    costCenters: options.costCenters as never,
+    projects: options.projects as never,
+    funds: options.funds as never,
+    vendors: [],
+  }
+  const { data: lookups } = useLookups(seed)
+  const opts = {
+    gls: (lookups?.glAccounts ?? options.gls) as GL[],
+    taxCodes: (lookups?.taxCodes ?? options.taxCodes) as Tax[],
+    costCenters: (lookups?.costCenters ?? options.costCenters) as Dim[],
+    projects: (lookups?.projects ?? options.projects) as Dim[],
+    funds: (lookups?.funds ?? options.funds) as Dim[],
+  }
+
   const activeDoc = documents?.[0]
   const [lines, setLines] = useState<CodingLine[]>(() => initialLines)
   const [previewCollapsed, setPreviewCollapsed] = useState(false)
@@ -74,7 +93,7 @@ export function CodingScreen({
     setLines(initialLines)
   }, [initialLines])
 
-  const taxById = useMemo(() => new Map(options.taxCodes.map((t) => [String(t.id), t])), [options.taxCodes])
+  const taxById = useMemo(() => new Map(opts.taxCodes.map((t) => [String(t.id), t])), [opts.taxCodes])
 
   const totals = useMemo(() => {
     return lines.reduce(
@@ -269,11 +288,11 @@ export function CodingScreen({
                                   onChange={(id) =>
                                     updateLine(idx, {
                                       glAccount: id
-                                        ? (options.gls.find((g) => String(g.id) === id) as never)
+                                        ? (opts.gls.find((g) => String(g.id) === id) as never)
                                         : null,
                                     })
                                   }
-                                  options={options.gls.map((g) => ({ id: String(g.id), label: `${g.code} — ${g.description}` }))}
+                                  options={opts.gls.map((g) => ({ id: String(g.id), label: `${g.code} — ${g.description}` }))}
                                   placeholder="Select GL…"
                                 />
                               </TableCell>
@@ -283,11 +302,11 @@ export function CodingScreen({
                                   onChange={(id) =>
                                     updateLine(idx, {
                                       costCenter: id
-                                        ? (options.costCenters.find((d) => String(d.id) === id) as never)
+                                        ? (opts.costCenters.find((d) => String(d.id) === id) as never)
                                         : null,
                                     })
                                   }
-                                  options={options.costCenters.map((d) => ({ id: String(d.id), label: `${d.code} — ${d.description}` }))}
+                                  options={opts.costCenters.map((d) => ({ id: String(d.id), label: `${d.code} — ${d.description}` }))}
                                   placeholder="—"
                                 />
                               </TableCell>
@@ -297,11 +316,11 @@ export function CodingScreen({
                                   onChange={(id) =>
                                     updateLine(idx, {
                                       project: id
-                                        ? (options.projects.find((d) => String(d.id) === id) as never)
+                                        ? (opts.projects.find((d) => String(d.id) === id) as never)
                                         : null,
                                     })
                                   }
-                                  options={options.projects.map((d) => ({ id: String(d.id), label: `${d.code} — ${d.description}` }))}
+                                  options={opts.projects.map((d) => ({ id: String(d.id), label: `${d.code} — ${d.description}` }))}
                                   placeholder="—"
                                 />
                               </TableCell>
@@ -320,11 +339,11 @@ export function CodingScreen({
                                   onChange={(id) =>
                                     updateLine(idx, {
                                       taxCode: id
-                                        ? (options.taxCodes.find((t) => String(t.id) === id) as never)
+                                        ? (opts.taxCodes.find((t) => String(t.id) === id) as never)
                                         : null,
                                     })
                                   }
-                                  options={options.taxCodes.map((t) => ({ id: String(t.id), label: t.code }))}
+                                  options={opts.taxCodes.map((t) => ({ id: String(t.id), label: t.code }))}
                                   placeholder="—"
                                 />
                               </TableCell>

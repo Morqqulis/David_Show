@@ -8,6 +8,7 @@ import { StageBadge } from './stage-badge'
 import { Money } from './money'
 import { formatDate } from '@/backend/lib/formatting'
 import type { StageId } from '@/backend/lib/stage-ids'
+import { usePrefetchInvoice } from '@/hooks/use-ap-queries'
 
 export type InvoiceRow = {
   id: string | number
@@ -51,6 +52,7 @@ export function InvoiceTable({
 }) {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
   const [selected, setSelected] = useState<Record<string, boolean>>({})
+  const prefetchInvoice = usePrefetchInvoice()
 
   const selectedIds = useMemo(() => Object.keys(selected).filter((k) => selected[k]), [selected])
   const allOnPageChecked = rows.length > 0 && rows.every((r) => selected[String(r.id)])
@@ -115,6 +117,7 @@ export function InvoiceTable({
                 return (
                   <Fragment key={key}>
                     <tr
+                      onMouseEnter={() => prefetchInvoice(row.id)}
                       className={cn(
                         'hover:bg-muted/30',
                         selected[key] && 'bg-primary/5',

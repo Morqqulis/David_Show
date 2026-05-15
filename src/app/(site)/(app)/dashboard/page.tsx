@@ -3,6 +3,7 @@ import { Topbar } from '@/components/app/topbar'
 import { PageHeader } from '@/components/app/page-header'
 import { StageBadge } from '@/components/app/stage-badge'
 import { Money } from '@/components/app/money'
+import { DashboardRecentRow } from '@/components/app/dashboard-recent-row'
 import { getPayload } from '@/backend/lib/payload'
 import { getStageCounts } from '@/backend/lib/queries'
 import { STAGE_LABELS, STAGE_ORDER, type StageId } from '@/backend/lib/stage-ids'
@@ -180,24 +181,7 @@ export default async function DashboardPage() {
               {recentInvoices.length === 0 ? (
                 <div className="p-8 text-center text-sm text-muted-foreground">No invoices yet.</div>
               ) : (
-                recentInvoices.map((inv) => (
-                  <Link
-                    key={String(inv.id)}
-                    href={`/requests/${inv.id}`}
-                    className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-muted/40"
-                  >
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium">{inv.invoiceNumber}</span>
-                        {inv.currentStage ? <StageBadge stage={inv.currentStage as never} size="sm" /> : null}
-                      </div>
-                      <div className="truncate text-xs text-muted-foreground">
-                        {inv.vendor?.name ?? '—'} · updated {formatRelative(inv.updatedAt)}
-                      </div>
-                    </div>
-                    <Money value={inv.grandTotal} className="font-semibold" />
-                  </Link>
-                ))
+                recentInvoices.map((inv) => <DashboardRecentRow key={String(inv.id)} inv={inv as never} />)
               )}
             </div>
           </div>

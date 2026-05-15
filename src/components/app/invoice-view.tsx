@@ -14,15 +14,15 @@ import { DocumentUpload } from './document-upload'
 import { formatDate, formatRelative, initials } from '@/backend/lib/formatting'
 import type { StageId } from '@/backend/lib/stage-ids'
 import { STAGE_LABELS, STAGE_ORDER } from '@/backend/lib/stage-ids'
-import {
-  approveInvoice,
-  rejectInvoice,
-  postComment,
-  verifyInvoice,
-  setConfidential,
-  softDeleteInvoice,
-} from '@/backend/actions/invoice-actions'
+import { postComment, softDeleteInvoice } from '@/backend/actions/invoice-actions'
 import { deleteDocument } from '@/backend/actions/document-actions'
+import {
+  useApproveInvoice,
+  useRejectInvoice,
+  useVerifyInvoice,
+  useSetConfidential,
+  useInvoice,
+} from '@/hooks/use-ap-queries'
 
 export type InvoiceViewData = {
   invoice: {
@@ -69,51 +69,32 @@ export type InvoiceViewData = {
 
 export function InvoiceView({ data }: { data: InvoiceViewData }) {
   const router = useRouter()
-  const docs = data.documents ?? []
+
+  // SSR data is the initial source; TanStack keeps a fresh copy in sync after mutations.
+  const { data: live } = useInvoice(data.invoice.id, { enabled: true })
+  const inv = (live?.invoice ?? data.invoice) as InvoiceViewData['invoice']
+  const lines = (live?.lines ?? data.lines) as InvoiceViewData['lines']
+  const comments = (live?.comments ?? data.comments) as InvoiceViewData['comments']
+  const audit = (live?.audit ?? data.audit) as InvoiceViewData['audit']
+  const docs = ((live?.documents ?? data.documents) as InvoiceViewData['documents']) ?? []
+
   const [previewCollapsed, setPreviewCollapsed] = useState(false)
   const [activeDocId, setActiveDocId] = useState<string>(docs[0] ? String(docs[0].id) : '')
   const activeDoc = docs.find((d) => String(d.id) === activeDocId) ?? docs[0]
   const [tab, setTab] = useState<string>(data.defaultTab ?? 'header')
   const [isPending, startTransition] = useTransition()
 
-  const inv = data.invoice
+  const approve = useApproveInvoice()
+  const reject = useRejectInvoice()
+  const verify = useVerifyInvoice()
+  const confidential = useSetConfidential()
+
   const currentStage = (inv.currentStage?.systemId ?? 'to_be_assigned') as StageId
 
-  const onApprove = () =>
-    startTransition(async () => {
-      try {
-        await approveInvoice(inv.id)
-        toast.success('Approved — advanced to next stage')
-        router.refresh()
-      } catch (e) {
-        toast.error((e as Error).message)
-      }
-    })
-
-  const onReject = (target: StageId, reason: string) =>
-    startTransition(async () => {
-      try {
-        await rejectInvoice(inv.id, target, reason)
-        toast.success(`Rejected back to ${STAGE_LABELS[target]}`)
-        router.refresh()
-      } catch (e) {
-        toast.error((e as Error).message)
-      }
-    })
-
-  const onVerify = (v: boolean) =>
-    startTransition(async () => {
-      await verifyInvoice(inv.id, v)
-      toast.success(v ? 'Marked verified' : 'Verification cleared')
-      router.refresh()
-    })
-
-  const onToggleConfidential = () =>
-    startTransition(async () => {
-      await setConfidential(inv.id, !inv.confidential)
-      toast.success(inv.confidential ? 'Confidential flag cleared' : 'Marked confidential')
-      router.refresh()
-    })
+  const onApprove = () => approve.mutate({ id: inv.id, currentStage })
+  const onReject = (target: StageId, reason: string) => reject.mutate({ id: inv.id, target, reason })
+  const onVerify = (v: boolean) => verify.mutate({ id: inv.id, value: v })
+  const onToggleConfidential = () => confidential.mutate({ id: inv.id, value: !inv.confidential })
 
   const onSoftDelete = () => {
     const reason = window.prompt('Reason for delete?')
@@ -124,6 +105,8 @@ export function InvoiceView({ data }: { data: InvoiceViewData }) {
       router.push('/requests')
     })
   }
+
+  const isMutating = approve.isPending || reject.isPending || verify.isPending || confidential.isPending || isPending
 
   return (
     <div className="flex flex-1 flex-col gap-3 overflow-hidden">
@@ -225,7 +208,7 @@ export function InvoiceView({ data }: { data: InvoiceViewData }) {
                 <HeaderTab inv={inv} />
               </TabsContent>
               <TabsContent value="coding" className="m-0">
-                <CodingTab invoiceId={inv.id} lines={data.lines} totals={{ subtotal: inv.subtotal, tax: inv.totalTax, total: inv.grandTotal }} />
+                <CodingTab invoiceId={inv.id} lines={lines} totals={{ subtotal: inv.subtotal, tax: inv.totalTax, total: inv.grandTotal }} />
               </TabsContent>
               <TabsContent value="files" className="m-0">
                 <FilesTab
@@ -236,10 +219,10 @@ export function InvoiceView({ data }: { data: InvoiceViewData }) {
                 />
               </TabsContent>
               <TabsContent value="notes" className="m-0">
-                <NotesTab invoiceId={inv.id} comments={data.comments} />
+                <NotesTab invoiceId={inv.id} comments={comments} />
               </TabsContent>
               <TabsContent value="log" className="m-0">
-                <LogTab events={data.audit} />
+                <LogTab events={audit} />
               </TabsContent>
             </div>
           </Tabs>
@@ -252,7 +235,7 @@ export function InvoiceView({ data }: { data: InvoiceViewData }) {
           {currentStage !== 'completed' ? (
             <button
               onClick={onApprove}
-              disabled={isPending}
+              disabled={isMutating}
               className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
             >
               <Check className="h-4 w-4" />
@@ -261,7 +244,7 @@ export function InvoiceView({ data }: { data: InvoiceViewData }) {
           ) : null}
 
           {STAGE_ORDER.indexOf(currentStage) > 0 && currentStage !== 'completed' ? (
-            <RejectMenu currentStage={currentStage} onReject={onReject} disabled={isPending} />
+            <RejectMenu currentStage={currentStage} onReject={onReject} disabled={isMutating} />
           ) : null}
 
           <button className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5 text-sm font-medium hover:bg-muted">
@@ -271,7 +254,7 @@ export function InvoiceView({ data }: { data: InvoiceViewData }) {
           {currentStage === 'treasurer_review' ? (
             <button
               onClick={() => onVerify(!inv.verified)}
-              disabled={isPending}
+              disabled={isMutating}
               className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5 text-sm font-medium hover:bg-muted"
             >
               <Check className="h-4 w-4" />
@@ -282,7 +265,7 @@ export function InvoiceView({ data }: { data: InvoiceViewData }) {
         <div className="flex items-center gap-2">
           <button
             onClick={onToggleConfidential}
-            disabled={isPending}
+            disabled={isMutating}
             className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1.5 text-xs font-medium hover:bg-muted"
           >
             <Lock className="h-3.5 w-3.5" />
@@ -290,7 +273,7 @@ export function InvoiceView({ data }: { data: InvoiceViewData }) {
           </button>
           <button
             onClick={onSoftDelete}
-            disabled={isPending}
+            disabled={isMutating}
             className="inline-flex items-center gap-1.5 rounded-md border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100"
           >
             <Trash2 className="h-3.5 w-3.5" />
