@@ -1,6 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { getPayload } from '@/backend/lib/payload'
-import { FieldsTable } from '@/components/app/settings/fields-table'
+import { FieldsTable } from '@/components/app/settings/fields'
 
 export const dynamic = 'force-dynamic'
 

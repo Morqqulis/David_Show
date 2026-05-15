@@ -1,14 +1,9 @@
-import Link from 'next/link'
+import { AlertTriangle } from 'lucide-react'
 import { Topbar } from '@/components/app/topbar'
 import { PageHeader } from '@/components/app/page-header'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Badge } from '@/components/ui/badge'
-import { Money } from '@/components/app/money'
-import { formatDate } from '@/backend/lib/formatting'
 import { getPayload } from '@/backend/lib/payload'
-import { RetryArchiveButton } from '@/components/app/retry-archive-button'
-import { AlertTriangle } from 'lucide-react'
+import { AlertsTable, type AlertRow } from '@/components/app/alerts/alerts-table'
 
 export const dynamic = 'force-dynamic'
 
@@ -21,14 +16,8 @@ export default async function AlertsPage() {
     sort: '-updatedAt',
     limit: 100,
   })
-  const rows = res.docs as Array<{
-    id: string | number
-    invoiceNumber: string
-    vendor?: { name: string }
-    grandTotal: number
-    updatedAt: string
-    flags?: { archiveAttempts?: number }
-  }>
+  const rows = res.docs as unknown as AlertRow[]
+
   return (
     <>
       <Topbar crumbs={[{ label: 'Home', href: '/dashboard' }, { label: 'Alerts' }]} />
@@ -47,44 +36,7 @@ export default async function AlertsPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Invoice</TableHead>
-                  <TableHead>Vendor</TableHead>
-                  <TableHead className="text-right">Amount</TableHead>
-                  <TableHead>Last attempt</TableHead>
-                  <TableHead>Attempts</TableHead>
-                  <TableHead className="w-[120px]"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {rows.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={6} className="py-12 text-center text-muted-foreground">
-                      No archive failures. Everything's synced.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  rows.map((r) => (
-                    <TableRow key={String(r.id)}>
-                      <TableCell>
-                        <Link href={`/requests/${r.id}`} className="font-medium hover:text-primary hover:underline">
-                          {r.invoiceNumber}
-                        </Link>
-                      </TableCell>
-                      <TableCell>{r.vendor?.name ?? '—'}</TableCell>
-                      <TableCell className="text-right"><Money value={r.grandTotal} /></TableCell>
-                      <TableCell className="text-xs text-muted-foreground">{formatDate(r.updatedAt)}</TableCell>
-                      <TableCell><Badge variant="secondary">{r.flags?.archiveAttempts ?? 0}</Badge></TableCell>
-                      <TableCell>
-                        <RetryArchiveButton id={r.id} />
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
+            <AlertsTable rows={rows} />
           </CardContent>
         </Card>
       </main>

@@ -1,13 +1,41 @@
 import { getPayload } from './payload'
 import { STAGE_ORDER, type StageId } from './stage-ids'
 
+export const MAX_PAGE_SIZE = 50
+export const DEFAULT_PAGE_SIZE = 25
+
+function clampPageSize(n?: number): number {
+  if (!n || n <= 0) return DEFAULT_PAGE_SIZE
+  return Math.min(n, MAX_PAGE_SIZE)
+}
+
 export async function getStageCounts() {
   const payload = await getPayload()
-  const stages = await payload.find({ collection: 'stages', limit: 50 })
+  const stages = await payload.find({ collection: 'stages', limit: 50, depth: 0 })
   const stageMap = new Map<StageId, string | number>()
   for (const s of stages.docs as Array<{ id: string | number; systemId: StageId }>) {
     stageMap.set(s.systemId, s.id)
   }
+
+  // Fire all per-stage counts in parallel. Sequential await in a loop on
+  // Vercel Postgres adds up to seconds; Promise.all collapses it to the
+  // slowest single query (typically ~200-400ms).
+  const results = await Promise.all(
+    STAGE_ORDER.map(async (sysId) => {
+      const stageId = stageMap.get(sysId)
+      if (!stageId) return [sysId, 0] as const
+      const res = await payload.count({
+        collection: 'invoices',
+        where: {
+          and: [
+            { currentStage: { equals: stageId } },
+            { softDeleted: { not_equals: true } },
+          ],
+        },
+      })
+      return [sysId, res.totalDocs] as const
+    }),
+  )
 
   const counts: Record<StageId | 'all', number> = {
     all: 0,
@@ -20,20 +48,9 @@ export async function getStageCounts() {
     treasurer_review: 0,
     completed: 0,
   }
-  for (const sysId of STAGE_ORDER) {
-    const stageId = stageMap.get(sysId)
-    if (!stageId) continue
-    const res = await payload.count({
-      collection: 'invoices',
-      where: {
-        and: [
-          { currentStage: { equals: stageId } },
-          { softDeleted: { not_equals: true } },
-        ],
-      },
-    })
-    counts[sysId] = res.totalDocs
-    counts.all += res.totalDocs
+  for (const [sysId, total] of results) {
+    counts[sysId] = total
+    counts.all += total
   }
   return counts
 }
@@ -59,11 +76,18 @@ export type InvoiceListFilters = {
   pageSize?: number
 }
 
-export async function listInvoices(filters: InvoiceListFilters = {}) {
+export type InvoiceListResult = {
+  docs: Array<Record<string, unknown> & { id: string | number; lines?: unknown[] }>
+  totalDocs: number
+  totalPages: number
+  page: number
+  pageSize: number
+  hasPrevPage: boolean
+  hasNextPage: boolean
+}
+
+export async function listInvoices(filters: InvoiceListFilters = {}): Promise<InvoiceListResult> {
   const payload = await getPayload()
-  const where: Record<string, unknown> = {
-    softDeleted: { not_equals: true },
-  }
   const and: Record<string, unknown>[] = [{ softDeleted: { not_equals: true } }]
   if (filters.stage && filters.stage !== 'all') {
     and.push({ 'currentStage.systemId': { equals: filters.stage } })
@@ -88,8 +112,8 @@ export async function listInvoices(filters: InvoiceListFilters = {}) {
   }
   if (filters.confidential != null) and.push({ confidential: { equals: filters.confidential } })
 
-  const page = filters.page ?? 1
-  const pageSize = filters.pageSize ?? 25
+  const page = Math.max(1, filters.page ?? 1)
+  const pageSize = clampPageSize(filters.pageSize)
   const res = await payload.find({
     collection: 'invoices',
     where: { and } as never,
@@ -98,8 +122,10 @@ export async function listInvoices(filters: InvoiceListFilters = {}) {
     limit: pageSize,
     page,
   })
+
+  // Batch-fetch lines for visible invoices in one query (avoids N+1 on row expansion).
   const invoiceIds = res.docs.map((d) => (d as { id: string | number }).id)
-  let linesByInvoice: Record<string, unknown[]> = {}
+  const linesByInvoice: Record<string, unknown[]> = {}
   if (invoiceIds.length > 0) {
     const lineRes = await payload.find({
       collection: 'invoice-lines',
@@ -116,21 +142,26 @@ export async function listInvoices(filters: InvoiceListFilters = {}) {
       ;(linesByInvoice[invId] = linesByInvoice[invId] ?? []).push(line)
     }
   }
-  for (const doc of res.docs as unknown as Array<{ id: string | number; lines?: unknown[] }>) {
+  const docs = res.docs as unknown as Array<{ id: string | number; lines?: unknown[] }>
+  for (const doc of docs) {
     doc.lines = linesByInvoice[String(doc.id)] ?? []
   }
-  return res
+  return {
+    docs: docs as InvoiceListResult['docs'],
+    totalDocs: res.totalDocs,
+    totalPages: res.totalPages,
+    page: res.page ?? page,
+    pageSize,
+    hasPrevPage: res.hasPrevPage,
+    hasNextPage: res.hasNextPage,
+  }
 }
 
 export async function getInvoiceWithLines(rawId: string | number) {
   const payload = await getPayload()
-  // Postgres adapter uses numeric IDs; the URL hands us a string. Coerce if it parses cleanly.
-  const numeric = typeof rawId === 'string' && /^\d+$/.test(rawId) ? parseInt(rawId, 10) : rawId
-  const id = numeric
+  // Postgres adapter uses numeric IDs; coerce string IDs from URL.
+  const id = typeof rawId === 'string' && /^\d+$/.test(rawId) ? parseInt(rawId, 10) : rawId
 
-  // depth: 2 is enough — vendor.name, currentStage.systemId, departments[].name, assignees[].name, batch.number, stage.label.
-  // depth: 3 explodes through stages.fieldsEditableBy → roles → permissions, which is heavy and circular-ish.
-  // disableErrors so we get null instead of a thrown NotFound for genuinely missing IDs.
   const invoice = await payload.findByID({
     collection: 'invoices',
     id: id as never,
@@ -138,39 +169,48 @@ export async function getInvoiceWithLines(rawId: string | number) {
     disableErrors: true,
   })
   if (!invoice) return null
-  const lines = await payload.find({
-    collection: 'invoice-lines',
-    where: { invoice: { equals: id } } as never,
-    depth: 2,
-    sort: 'order',
-    limit: 100,
-  })
-  const comments = await payload.find({
-    collection: 'invoice-comments',
-    where: { invoice: { equals: id } } as never,
-    depth: 1,
-    sort: '-createdAt',
-    limit: 100,
-  })
-  const audit = await payload.find({
-    collection: 'audit-events',
-    where: { invoice: { equals: id } } as never,
-    depth: 1,
-    sort: '-createdAt',
-    limit: 200,
-  })
-  const documents = await payload.find({
-    collection: 'documents',
-    where: {
-      and: [
-        { invoice: { equals: id } },
-        { softDeleted: { not_equals: true } },
-      ],
-    } as never,
-    depth: 1,
-    sort: '-createdAt',
-    limit: 50,
-  })
+
+  // Tight payload: only what the InvoiceView surfaces above the fold.
+  // - Lines: keep depth: 2 (we need glAccount.code, taxCode.rate)
+  // - Comments / audit: depth: 1 (just author/actor name), limit: 50
+  //   (the Log tab paginates if it ever needs more)
+  // - Documents: depth: 1 for uploaded URL only
+  const [lines, comments, audit, documents] = await Promise.all([
+    payload.find({
+      collection: 'invoice-lines',
+      where: { invoice: { equals: id } } as never,
+      depth: 2,
+      sort: 'order',
+      limit: 100,
+    }),
+    payload.find({
+      collection: 'invoice-comments',
+      where: { invoice: { equals: id } } as never,
+      depth: 1,
+      sort: '-createdAt',
+      limit: 50,
+    }),
+    payload.find({
+      collection: 'audit-events',
+      where: { invoice: { equals: id } } as never,
+      depth: 1,
+      sort: '-createdAt',
+      limit: 50,
+    }),
+    payload.find({
+      collection: 'documents',
+      where: {
+        and: [
+          { invoice: { equals: id } },
+          { softDeleted: { not_equals: true } },
+        ],
+      } as never,
+      depth: 1,
+      sort: '-createdAt',
+      limit: 50,
+    }),
+  ])
+
   return {
     invoice,
     lines: lines.docs,

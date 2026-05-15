@@ -1,21 +1,22 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { Plus, Pencil, Trash2 } from 'lucide-react'
+import type { ColumnDef } from '@tanstack/react-table'
+import { Pencil, Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-
-export type Column<T> = {
-  key: keyof T | string
-  label: string
-  render?: (row: T) => React.ReactNode
-  className?: string
-}
+import { DataTable } from '@/components/ui/data-table'
 
 export type SimpleField<T> = {
   key: keyof T | string
@@ -26,23 +27,29 @@ export type SimpleField<T> = {
   step?: number
 }
 
-export function SimpleCrud<T extends { id: string | number }>({
-  title,
-  rows,
-  columns,
-  fields,
-  upsert,
-  remove,
-  canDelete = () => true,
-}: {
+export type SimpleCrudProps<T extends { id: string | number }> = {
   title: string
   rows: T[]
-  columns: Column<T>[]
+  /** TanStack column definitions for the displayed (non-action) columns. */
+  columns: ColumnDef<T>[]
+  /** Form fields for the add/edit dialog. */
   fields: SimpleField<T>[]
   upsert: (id: string | number | null, patch: Record<string, unknown>) => Promise<void>
   remove: (id: string | number) => Promise<void>
   canDelete?: (row: T) => boolean
-}) {
+  emptyMessage?: string
+}
+
+export function SimpleCrud<T extends { id: string | number }>({
+  title,
+  rows,
+  columns: providedColumns,
+  fields,
+  upsert,
+  remove,
+  canDelete = () => true,
+  emptyMessage,
+}: SimpleCrudProps<T>) {
   const router = useRouter()
   const [, startTransition] = useTransition()
   const [open, setOpen] = useState(false)
@@ -67,6 +74,40 @@ export function SimpleCrud<T extends { id: string | number }>({
     })
   }
 
+  const columns = useMemo<ColumnDef<T>[]>(
+    () => [
+      ...providedColumns,
+      {
+        id: 'actions',
+        enableSorting: false,
+        enableHiding: false,
+        size: 80,
+        header: () => null,
+        cell: ({ row }) => (
+          <div className="flex items-center gap-1">
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={() => {
+                setEditing(row.original)
+                setOpen(true)
+              }}
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </Button>
+            {canDelete(row.original) ? (
+              <Button size="icon" variant="ghost" onClick={() => onRemove(row.original)}>
+                <Trash2 className="h-3.5 w-3.5 text-red-600" />
+              </Button>
+            ) : null}
+          </div>
+        ),
+      },
+    ],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [providedColumns, canDelete],
+  )
+
   return (
     <div className="space-y-3">
       <div className="flex justify-end">
@@ -90,58 +131,12 @@ export function SimpleCrud<T extends { id: string | number }>({
           </DialogContent>
         </Dialog>
       </div>
-      <div className="overflow-x-auto rounded-md border border-border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              {columns.map((c) => (
-                <TableHead key={String(c.key)} className={c.className}>
-                  {c.label}
-                </TableHead>
-              ))}
-              <TableHead className="w-[80px]"></TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={columns.length + 1} className="py-8 text-center text-muted-foreground">
-                  No records yet.
-                </TableCell>
-              </TableRow>
-            ) : (
-              rows.map((row) => (
-                <TableRow key={String(row.id)}>
-                  {columns.map((c) => (
-                    <TableCell key={String(c.key)} className={c.className}>
-                      {c.render ? c.render(row) : String((row as Record<string, unknown>)[c.key as string] ?? '—')}
-                    </TableCell>
-                  ))}
-                  <TableCell>
-                    <div className="flex items-center gap-1">
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={() => {
-                          setEditing(row)
-                          setOpen(true)
-                        }}
-                      >
-                        <Pencil className="h-3.5 w-3.5" />
-                      </Button>
-                      {canDelete(row) ? (
-                        <Button size="icon" variant="ghost" onClick={() => onRemove(row)}>
-                          <Trash2 className="h-3.5 w-3.5 text-red-600" />
-                        </Button>
-                      ) : null}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
+      <DataTable<T>
+        columns={columns}
+        data={rows}
+        getRowId={(row) => String(row.id)}
+        emptyMessage={emptyMessage ?? `No ${title.toLowerCase()} records yet.`}
+      />
     </div>
   )
 }
@@ -175,7 +170,7 @@ function FormBody<T extends { id: string | number }>({
             <Input
               type={f.type ?? 'text'}
               step={f.step}
-              value={(state[f.key as string] ?? '') as string | number}
+              value={String(state[f.key as string] ?? '')}
               onChange={(e) =>
                 setState((s) => ({
                   ...s,

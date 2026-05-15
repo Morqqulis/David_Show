@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { Undo2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { restoreInvoice } from '@/backend/actions/invoice-actions'
+import { restoreInvoice } from '@/backend/actions/invoice'
 
 export function RestoreButton({ id }: { id: string | number }) {
   const router = useRouter()

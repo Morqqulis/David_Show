@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { retryArchive } from '@/backend/actions/invoice-actions'
+import { retryArchive } from '@/backend/actions/invoice'
 
 export function RetryArchiveButton({ id }: { id: string | number }) {
   const router = useRouter()

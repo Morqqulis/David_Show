@@ -1,6 +1,7 @@
 'use client'
 
 import { FileText, Download } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 
 export type PreviewDocument = {
   id: string | number
@@ -51,14 +52,12 @@ export function PdfPreview({ doc, invoiceNumber }: { doc?: PreviewDocument | nul
         <div className="font-medium text-foreground">{doc.filename}</div>
         <div className="text-xs">No inline preview for this file type</div>
       </div>
-      <a
-        href={doc.url}
-        download={doc.filename}
-        className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium hover:bg-muted"
-      >
-        <Download className="h-3.5 w-3.5" />
-        Download
-      </a>
+      <Button asChild variant="outline" size="sm">
+        <a href={doc.url} download={doc.filename}>
+          <Download className="h-3.5 w-3.5" />
+          Download
+        </a>
+      </Button>
     </div>
   )
 }

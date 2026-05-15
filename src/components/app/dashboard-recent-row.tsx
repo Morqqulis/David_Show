@@ -1,11 +1,8 @@
-'use client'
-
 import Link from 'next/link'
 import { StageBadge } from './stage-badge'
 import { Money } from './money'
 import { formatRelative } from '@/backend/lib/formatting'
 import type { StageId } from '@/backend/lib/stage-ids'
-import { usePrefetchInvoice } from '@/hooks/use-ap-queries'
 
 export type RecentRowData = {
   id: string | number
@@ -16,12 +13,13 @@ export type RecentRowData = {
   updatedAt: string
 }
 
+// Server component. We intentionally skip TanStack hover-prefetch here:
+// the prefetch is a server action POST that takes 2-3s on Vercel Postgres
+// and competes with the click navigation for the same connection pool.
 export function DashboardRecentRow({ inv }: { inv: RecentRowData }) {
-  const prefetch = usePrefetchInvoice()
   return (
     <Link
       href={`/requests/${inv.id}`}
-      onMouseEnter={() => prefetch(inv.id)}
       className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-muted/40"
     >
       <div className="min-w-0">

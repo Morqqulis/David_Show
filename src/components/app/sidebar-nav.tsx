@@ -14,6 +14,7 @@ import {
   Receipt,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { useQueueCounts, type QueueCountsPayload } from '@/hooks/use-ap-queries'
 
 type Item = {
@@ -125,7 +126,9 @@ export function SidebarNav({ initial }: { initial: QueueCountsPayload }) {
       ))}
 
       <div className="mt-auto flex items-center gap-2 rounded-md border border-border px-2.5 py-2">
-        <div className="grid h-8 w-8 place-items-center rounded-full bg-muted text-xs font-semibold">DY</div>
+        <Avatar size="sm">
+          <AvatarFallback>DY</AvatarFallback>
+        </Avatar>
         <div className="flex min-w-0 flex-col leading-tight">
           <span className="truncate text-sm font-medium">David Y.</span>
           <span className="truncate text-[11px] text-muted-foreground">Admin</span>

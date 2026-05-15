@@ -21,8 +21,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   let counts = EMPTY_COUNTS
   let alerts = 0
   try {
-    counts = await getStageCounts()
-    alerts = await getAlertsCount()
+    ;[counts, alerts] = await Promise.all([getStageCounts(), getAlertsCount()])
   } catch {
     // Tables not seeded yet — sidebar starts at 0 and polls catch up.
   }

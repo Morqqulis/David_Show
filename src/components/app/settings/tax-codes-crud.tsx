@@ -1,10 +1,13 @@
 'use client'
 
+import { useMemo } from 'react'
+import type { ColumnDef } from '@tanstack/react-table'
+import { DataTableColumnHeader } from '@/components/ui/data-table/column-header'
 import { Badge } from '@/components/ui/badge'
 import { SimpleCrud } from './simple-crud'
 import { upsertTaxCode, deleteTaxCode } from '@/backend/actions/settings-actions'
 
-type TaxCode = {
+type TaxCodeRow = {
   id: string | number
   code: string
   label: string
@@ -13,17 +16,46 @@ type TaxCode = {
   active?: boolean
 }
 
-export function TaxCodesCrud({ rows }: { rows: TaxCode[] }) {
+function buildColumns(): ColumnDef<TaxCodeRow>[] {
+  return [
+    {
+      accessorKey: 'code',
+      meta: { label: 'Code' },
+      size: 180,
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Code" />,
+      cell: ({ row }) => <Badge variant="outline">{row.original.code}</Badge>,
+    },
+    {
+      accessorKey: 'label',
+      meta: { label: 'Label' },
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Label" />,
+    },
+    {
+      accessorKey: 'rate',
+      meta: { label: 'Rate' },
+      size: 100,
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Rate" />,
+      cell: ({ row }) => <span className="tabular-nums">{(row.original.rate * 100).toFixed(2)}%</span>,
+    },
+    {
+      accessorKey: 'recoverablePct',
+      meta: { label: 'Recoverable' },
+      size: 110,
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Recoverable" />,
+      cell: ({ row }) => (
+        <span className="tabular-nums">{(row.original.recoverablePct * 100).toFixed(0)}%</span>
+      ),
+    },
+  ]
+}
+
+export function TaxCodesCrud({ rows }: { rows: TaxCodeRow[] }) {
+  const columns = useMemo(() => buildColumns(), [])
   return (
-    <SimpleCrud<TaxCode>
+    <SimpleCrud<TaxCodeRow>
       title="Tax code"
       rows={rows}
-      columns={[
-        { key: 'code', label: 'Code', className: 'font-mono w-[180px]', render: (r) => <Badge variant="outline">{r.code}</Badge> },
-        { key: 'label', label: 'Label' },
-        { key: 'rate', label: 'Rate', render: (r) => `${(r.rate * 100).toFixed(2)}%`, className: 'tabular-nums w-[100px]' },
-        { key: 'recoverablePct', label: 'Recoverable', render: (r) => `${(r.recoverablePct * 100).toFixed(0)}%`, className: 'tabular-nums w-[100px]' },
-      ]}
+      columns={columns}
       fields={[
         { key: 'code', label: 'Code (e.g. HST-ON-PSB)' },
         { key: 'label', label: 'Label' },

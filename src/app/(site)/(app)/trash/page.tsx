@@ -1,14 +1,8 @@
-import Link from 'next/link'
 import { Topbar } from '@/components/app/topbar'
 import { PageHeader } from '@/components/app/page-header'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Money } from '@/components/app/money'
-import { Button } from '@/components/ui/button'
-import { Undo2 } from 'lucide-react'
-import { formatDate } from '@/backend/lib/formatting'
 import { getPayload } from '@/backend/lib/payload'
-import { RestoreButton } from '@/components/app/restore-button'
+import { TrashTable, type TrashRow } from '@/components/app/trash/trash-table'
 
 export const dynamic = 'force-dynamic'
 
@@ -21,14 +15,8 @@ export default async function TrashPage() {
     sort: '-updatedAt',
     limit: 100,
   })
-  const rows = res.docs as Array<{
-    id: string | number
-    invoiceNumber: string
-    vendor?: { name: string }
-    grandTotal: number
-    deletedReason?: string
-    updatedAt: string
-  }>
+  const rows = res.docs as unknown as TrashRow[]
+
   return (
     <>
       <Topbar crumbs={[{ label: 'Home', href: '/dashboard' }, { label: 'Trash' }]} />
@@ -42,40 +30,7 @@ export default async function TrashPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Invoice</TableHead>
-                  <TableHead>Vendor</TableHead>
-                  <TableHead className="text-right">Amount</TableHead>
-                  <TableHead>Deleted</TableHead>
-                  <TableHead>Reason</TableHead>
-                  <TableHead className="w-[120px]"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {rows.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={6} className="py-12 text-center text-muted-foreground">
-                      Trash is empty.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  rows.map((r) => (
-                    <TableRow key={String(r.id)}>
-                      <TableCell className="font-medium">{r.invoiceNumber}</TableCell>
-                      <TableCell>{r.vendor?.name ?? '—'}</TableCell>
-                      <TableCell className="text-right"><Money value={r.grandTotal} /></TableCell>
-                      <TableCell className="text-xs text-muted-foreground">{formatDate(r.updatedAt)}</TableCell>
-                      <TableCell className="text-xs">{r.deletedReason ?? '—'}</TableCell>
-                      <TableCell>
-                        <RestoreButton id={r.id} />
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
+            <TrashTable rows={rows} />
           </CardContent>
         </Card>
       </main>

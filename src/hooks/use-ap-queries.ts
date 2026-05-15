@@ -8,7 +8,7 @@ import {
   rejectInvoice,
   verifyInvoice,
   setConfidential,
-} from '@/backend/actions/invoice-actions'
+} from '@/backend/actions/invoice'
 import {
   fetchQueueCounts,
   fetchLookups,
@@ -50,12 +50,19 @@ export function useLookups(initialData?: LookupsPayload) {
   })
 }
 
-export function useInvoice(id: string | number, options?: { enabled?: boolean }) {
+export function useInvoice(
+  id: string | number,
+  options?: { enabled?: boolean; initialData?: unknown },
+) {
   return useQuery({
     queryKey: queryKeys.invoice(id),
     queryFn: () => fetchInvoice(id),
     staleTime: 10_000,
     enabled: options?.enabled ?? true,
+    // initialData lets TanStack skip the initial fetch when SSR already
+    // provided the data. Without this, every InvoiceView mount duplicated
+    // the server's getInvoiceWithLines call — a 3s redundant round-trip.
+    initialData: options?.initialData as never,
   })
 }
 
