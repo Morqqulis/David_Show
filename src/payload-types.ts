@@ -68,8 +68,25 @@ export interface Config {
   blocks: {};
   collections: {
     users: User;
-    municilacities: Municilacity;
-    apps: App;
+    departments: Department;
+    roles: Role;
+    vendors: Vendor;
+    'gl-accounts': GlAccount;
+    dimensions: Dimension;
+    'tax-codes': TaxCode;
+    stages: Stage;
+    sections: Section;
+    fields: Field;
+    documents: Document;
+    batches: Batch;
+    invoices: Invoice;
+    'invoice-lines': InvoiceLine;
+    'invoice-comments': InvoiceComment;
+    'audit-events': AuditEvent;
+    'approval-rules': ApprovalRule;
+    'coding-restrictions': CodingRestriction;
+    'email-templates': EmailTemplate;
+    'email-triggers': EmailTrigger;
     forms: Form;
     'form-submissions': FormSubmission;
     'payload-kv': PayloadKv;
@@ -80,8 +97,25 @@ export interface Config {
   collectionsJoins: {};
   collectionsSelect: {
     users: UsersSelect<false> | UsersSelect<true>;
-    municilacities: MunicilacitiesSelect<false> | MunicilacitiesSelect<true>;
-    apps: AppsSelect<false> | AppsSelect<true>;
+    departments: DepartmentsSelect<false> | DepartmentsSelect<true>;
+    roles: RolesSelect<false> | RolesSelect<true>;
+    vendors: VendorsSelect<false> | VendorsSelect<true>;
+    'gl-accounts': GlAccountsSelect<false> | GlAccountsSelect<true>;
+    dimensions: DimensionsSelect<false> | DimensionsSelect<true>;
+    'tax-codes': TaxCodesSelect<false> | TaxCodesSelect<true>;
+    stages: StagesSelect<false> | StagesSelect<true>;
+    sections: SectionsSelect<false> | SectionsSelect<true>;
+    fields: FieldsSelect<false> | FieldsSelect<true>;
+    documents: DocumentsSelect<false> | DocumentsSelect<true>;
+    batches: BatchesSelect<false> | BatchesSelect<true>;
+    invoices: InvoicesSelect<false> | InvoicesSelect<true>;
+    'invoice-lines': InvoiceLinesSelect<false> | InvoiceLinesSelect<true>;
+    'invoice-comments': InvoiceCommentsSelect<false> | InvoiceCommentsSelect<true>;
+    'audit-events': AuditEventsSelect<false> | AuditEventsSelect<true>;
+    'approval-rules': ApprovalRulesSelect<false> | ApprovalRulesSelect<true>;
+    'coding-restrictions': CodingRestrictionsSelect<false> | CodingRestrictionsSelect<true>;
+    'email-templates': EmailTemplatesSelect<false> | EmailTemplatesSelect<true>;
+    'email-triggers': EmailTriggersSelect<false> | EmailTriggersSelect<true>;
     forms: FormsSelect<false> | FormsSelect<true>;
     'form-submissions': FormSubmissionsSelect<false> | FormSubmissionsSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
@@ -129,7 +163,11 @@ export interface UserAuthOperations {
  */
 export interface User {
   id: number;
-  name?: string | null;
+  name: string;
+  role?: (number | null) | Role;
+  department?: (number | null) | Department;
+  avatar?: string | null;
+  active?: boolean | null;
   updatedAt: string;
   createdAt: string;
   email: string;
@@ -151,25 +189,528 @@ export interface User {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "municilacities".
+ * via the `definition` "roles".
  */
-export interface Municilacity {
+export interface Role {
   id: number;
-  title?: string | null;
+  name: string;
   description?: string | null;
-  primaryColor?: string | null;
-  secondaryColor?: string | null;
+  permissions?:
+    | {
+        action:
+          | 'view'
+          | 'edit'
+          | 'assign'
+          | 'code'
+          | 'approve'
+          | 'reject'
+          | 'reassign'
+          | 'post'
+          | 'archive'
+          | 'export'
+          | 'delete'
+          | 'configure'
+          | 'verify';
+        object: 'invoice' | 'document' | 'batch' | 'settings' | 'audit_log' | 'role';
+        scope: 'own' | 'department' | 'all';
+        stages?: (number | Stage)[] | null;
+        id?: string | null;
+      }[]
+    | null;
+  confidential?: boolean | null;
+  bypassCodingRestrictions?: boolean | null;
+  isSystem?: boolean | null;
   updatedAt: string;
   createdAt: string;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "apps".
+ * via the `definition` "stages".
  */
-export interface App {
+export interface Stage {
   id: number;
-  name?: string | null;
+  systemId:
+    | 'to_be_assigned'
+    | 'to_be_coded'
+    | 'conditional_approvals'
+    | 'ap_review'
+    | 'ready_for_processing'
+    | 'processed'
+    | 'treasurer_review'
+    | 'completed';
+  label: string;
+  order: number;
+  tone?: ('slate' | 'blue' | 'violet' | 'amber' | 'green' | 'red') | null;
+  active?: boolean | null;
+  required?: boolean | null;
+  bulkAssign?: boolean | null;
+  batchAssign?: boolean | null;
+  verifyFlag?: boolean | null;
+  allowReject?: boolean | null;
+  allowReassign?: boolean | null;
+  fieldsEditableBy?: (number | Role)[] | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "departments".
+ */
+export interface Department {
+  id: number;
+  name: string;
+  code: string;
+  head?: (number | null) | User;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "vendors".
+ */
+export interface Vendor {
+  id: number;
+  vendorNumber: string;
+  name: string;
+  email?: string | null;
+  phone?: string | null;
+  addressLine1?: string | null;
+  addressLine2?: string | null;
+  city?: string | null;
+  province?: string | null;
+  postalCode?: string | null;
+  paymentTerms?: string | null;
+  active?: boolean | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "gl-accounts".
+ */
+export interface GlAccount {
+  id: number;
+  code: string;
+  description: string;
+  /**
+   * Split of the code by configured delimiter. Auto-populated.
+   */
+  segments?:
+    | {
+        value?: string | null;
+        id?: string | null;
+      }[]
+    | null;
+  active?: boolean | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "dimensions".
+ */
+export interface Dimension {
+  id: number;
+  kind: 'cost_center' | 'project' | 'fund' | 'job_code';
+  code: string;
+  description: string;
+  label?: string | null;
+  active?: boolean | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "tax-codes".
+ */
+export interface TaxCode {
+  id: number;
+  code: string;
+  label: string;
+  /**
+   * Decimal, e.g. 0.13 for 13%
+   */
+  rate: number;
+  /**
+   * Decimal, 0-1
+   */
+  recoverablePct: number;
+  recoverableGl?: (number | null) | GlAccount;
+  apControlGl?: (number | null) | GlAccount;
+  active?: boolean | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "sections".
+ */
+export interface Section {
+  id: number;
+  name: string;
+  order: number;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "fields".
+ */
+export interface Field {
+  id: number;
+  /**
+   * Stable id used in invoice.customFields and lines.customLineFields
+   */
+  fieldKey: string;
+  label: string;
+  scope: 'header' | 'line';
+  section?: (number | null) | Section;
+  order?: number | null;
+  type:
+    | 'text'
+    | 'textarea'
+    | 'richtext'
+    | 'number'
+    | 'currency'
+    | 'date'
+    | 'choice'
+    | 'multiselect'
+    | 'yesno'
+    | 'lookup'
+    | 'user'
+    | 'group'
+    | 'file';
+  width?: ('full' | 'half' | 'third' | 'quarter') | null;
+  options?:
+    | {
+        value: string;
+        id?: string | null;
+      }[]
+    | null;
+  lookupEntity?: ('vendors' | 'gl-accounts' | 'cost_center' | 'project' | 'fund' | 'job_code' | 'tax-codes') | null;
+  mandatoryAtStages?: (number | Stage)[] | null;
+  showAsColumn?: boolean | null;
+  exportable?: boolean | null;
+  isSystem?: boolean | null;
+  removable?: boolean | null;
   description?: string | null;
+  placeholder?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "documents".
+ */
+export interface Document {
+  id: number;
+  invoice?: (number | null) | Invoice;
+  uploadedBy?: (number | null) | User;
+  softDeleted?: boolean | null;
+  deletedReason?: string | null;
+  _key?: string | null;
+  prefix?: string | null;
+  updatedAt: string;
+  createdAt: string;
+  url?: string | null;
+  thumbnailURL?: string | null;
+  filename?: string | null;
+  mimeType?: string | null;
+  filesize?: number | null;
+  width?: number | null;
+  height?: number | null;
+  focalX?: number | null;
+  focalY?: number | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "invoices".
+ */
+export interface Invoice {
+  id: number;
+  invoiceNumber: string;
+  vendor?: (number | null) | Vendor;
+  invoiceDate?: string | null;
+  dueDate?: string | null;
+  fiscalYear?: string | null;
+  poNumber?: string | null;
+  subtotal?: number | null;
+  totalTax?: number | null;
+  grandTotal?: number | null;
+  currentStage: number | Stage;
+  departments?: (number | Department)[] | null;
+  assignees?: (number | User)[] | null;
+  /**
+   * Per-recipient approval status at current stage
+   */
+  approvals?:
+    | {
+        user: number | User;
+        stage: number | Stage;
+        status?: ('pending' | 'approved' | 'rejected') | null;
+        at?: string | null;
+        comment?: string | null;
+        id?: string | null;
+      }[]
+    | null;
+  batch?: (number | null) | Batch;
+  verified?: boolean | null;
+  verifiedAt?: string | null;
+  verifiedBy?: (number | null) | User;
+  confidential?: boolean | null;
+  flags?: {
+    noAttachment?: boolean | null;
+    ocrFailed?: boolean | null;
+    vendorSetupRequired?: boolean | null;
+    possibleDuplicate?: boolean | null;
+    archiveFailed?: boolean | null;
+    archiveAttempts?: number | null;
+  };
+  createdVia?: ('email' | 'manual') | null;
+  /**
+   * 0-1 vendor confidence score from OCR
+   */
+  ocrConfidence?: number | null;
+  /**
+   * Header custom field values keyed by Field.fieldKey. Driven by Settings → Fields.
+   */
+  customFields?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  documents?: (number | Document)[] | null;
+  softDeleted?: boolean | null;
+  deletedReason?: string | null;
+  archivedAt?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "batches".
+ */
+export interface Batch {
+  id: number;
+  number: string;
+  createdBy?: (number | null) | User;
+  closedAt?: string | null;
+  closedBy?: (number | null) | User;
+  note?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "invoice-lines".
+ */
+export interface InvoiceLine {
+  id: number;
+  invoice: number | Invoice;
+  order?: number | null;
+  glAccount?: (number | null) | GlAccount;
+  costCenter?: (number | null) | Dimension;
+  project?: (number | null) | Dimension;
+  fund?: (number | null) | Dimension;
+  jobCode?: (number | null) | Dimension;
+  amount?: number | null;
+  taxCode?: (number | null) | TaxCode;
+  taxAmount?: number | null;
+  recoverable?: number | null;
+  nonRecoverable?: number | null;
+  description?: string | null;
+  /**
+   * Custom coding-line field values keyed by Field.fieldKey
+   */
+  customLineFields?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "invoice-comments".
+ */
+export interface InvoiceComment {
+  id: number;
+  invoice: number | Invoice;
+  author: number | User;
+  body: string;
+  mentions?: (number | User)[] | null;
+  preview?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "audit-events".
+ */
+export interface AuditEvent {
+  id: number;
+  invoice?: (number | null) | Invoice;
+  actor?: (number | null) | User;
+  action:
+    | 'created'
+    | 'updated'
+    | 'assigned'
+    | 'reassigned'
+    | 'approved'
+    | 'rejected'
+    | 'coded'
+    | 'batch_applied'
+    | 'batch_wiped'
+    | 'batch_closed'
+    | 'exported'
+    | 'archived'
+    | 'archive_failed'
+    | 'archive_retry'
+    | 'verified'
+    | 'unverified'
+    | 'document_uploaded'
+    | 'document_deleted'
+    | 'comment_added'
+    | 'soft_deleted'
+    | 'restored'
+    | 'flag_set'
+    | 'flag_cleared';
+  context?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "approval-rules".
+ */
+export interface ApprovalRule {
+  id: number;
+  name: string;
+  order?: number | null;
+  enabled?: boolean | null;
+  /**
+   * ConditionGroup { operator: "and"|"or", conditions: [{ fieldKey, operator, value }] }
+   */
+  conditions?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  approvers?:
+    | {
+        type: 'user' | 'role' | 'department_head';
+        user?: (number | null) | User;
+        role?: (number | null) | Role;
+        department?: (number | null) | Department;
+        id?: string | null;
+      }[]
+    | null;
+  mode?: ('parallel' | 'sequential') | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "coding-restrictions".
+ */
+export interface CodingRestriction {
+  id: number;
+  department: number | Department;
+  rules?:
+    | {
+        /**
+         * 1-based segment number in the GL code
+         */
+        segmentIndex: number;
+        operator: 'equals' | 'starts_with' | 'in';
+        value?: string | null;
+        listValues?:
+          | {
+              value: string;
+              id?: string | null;
+            }[]
+          | null;
+        id?: string | null;
+      }[]
+    | null;
+  departmentLabel?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "email-templates".
+ */
+export interface EmailTemplate {
+  id: number;
+  name: string;
+  subject: string;
+  bodyHtml: string;
+  enabled?: boolean | null;
+  description?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "email-triggers".
+ */
+export interface EmailTrigger {
+  id: number;
+  name: string;
+  event:
+    | 'submission'
+    | 'approval'
+    | 'rejection'
+    | 'reassignment'
+    | 'conditional_routing'
+    | 'treasurer_routing'
+    | 'batch_applied'
+    | 'archive_failed';
+  stage?: (number | null) | Stage;
+  template: number | EmailTemplate;
+  recipients?:
+    | {
+        type: 'dynamic' | 'role' | 'user' | 'email';
+        dynamicKey?: ('assignee' | 'approver' | 'rejecter' | 'submitter' | 'ap_supervisor') | null;
+        role?: (number | null) | Role;
+        user?: (number | null) | User;
+        email?: string | null;
+        id?: string | null;
+      }[]
+    | null;
+  cc?:
+    | {
+        type: 'dynamic' | 'role' | 'user' | 'email';
+        dynamicKey?: string | null;
+        role?: (number | null) | Role;
+        user?: (number | null) | User;
+        email?: string | null;
+        id?: string | null;
+      }[]
+    | null;
+  enabled?: boolean | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -393,12 +934,80 @@ export interface PayloadLockedDocument {
         value: number | User;
       } | null)
     | ({
-        relationTo: 'municilacities';
-        value: number | Municilacity;
+        relationTo: 'departments';
+        value: number | Department;
       } | null)
     | ({
-        relationTo: 'apps';
-        value: number | App;
+        relationTo: 'roles';
+        value: number | Role;
+      } | null)
+    | ({
+        relationTo: 'vendors';
+        value: number | Vendor;
+      } | null)
+    | ({
+        relationTo: 'gl-accounts';
+        value: number | GlAccount;
+      } | null)
+    | ({
+        relationTo: 'dimensions';
+        value: number | Dimension;
+      } | null)
+    | ({
+        relationTo: 'tax-codes';
+        value: number | TaxCode;
+      } | null)
+    | ({
+        relationTo: 'stages';
+        value: number | Stage;
+      } | null)
+    | ({
+        relationTo: 'sections';
+        value: number | Section;
+      } | null)
+    | ({
+        relationTo: 'fields';
+        value: number | Field;
+      } | null)
+    | ({
+        relationTo: 'documents';
+        value: number | Document;
+      } | null)
+    | ({
+        relationTo: 'batches';
+        value: number | Batch;
+      } | null)
+    | ({
+        relationTo: 'invoices';
+        value: number | Invoice;
+      } | null)
+    | ({
+        relationTo: 'invoice-lines';
+        value: number | InvoiceLine;
+      } | null)
+    | ({
+        relationTo: 'invoice-comments';
+        value: number | InvoiceComment;
+      } | null)
+    | ({
+        relationTo: 'audit-events';
+        value: number | AuditEvent;
+      } | null)
+    | ({
+        relationTo: 'approval-rules';
+        value: number | ApprovalRule;
+      } | null)
+    | ({
+        relationTo: 'coding-restrictions';
+        value: number | CodingRestriction;
+      } | null)
+    | ({
+        relationTo: 'email-templates';
+        value: number | EmailTemplate;
+      } | null)
+    | ({
+        relationTo: 'email-triggers';
+        value: number | EmailTrigger;
       } | null)
     | ({
         relationTo: 'forms';
@@ -456,6 +1065,10 @@ export interface PayloadMigration {
  */
 export interface UsersSelect<T extends boolean = true> {
   name?: T;
+  role?: T;
+  department?: T;
+  avatar?: T;
+  active?: T;
   updatedAt?: T;
   createdAt?: T;
   email?: T;
@@ -475,23 +1088,384 @@ export interface UsersSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "municilacities_select".
+ * via the `definition` "departments_select".
  */
-export interface MunicilacitiesSelect<T extends boolean = true> {
-  title?: T;
-  description?: T;
-  primaryColor?: T;
-  secondaryColor?: T;
+export interface DepartmentsSelect<T extends boolean = true> {
+  name?: T;
+  code?: T;
+  head?: T;
   updatedAt?: T;
   createdAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "apps_select".
+ * via the `definition` "roles_select".
  */
-export interface AppsSelect<T extends boolean = true> {
+export interface RolesSelect<T extends boolean = true> {
   name?: T;
   description?: T;
+  permissions?:
+    | T
+    | {
+        action?: T;
+        object?: T;
+        scope?: T;
+        stages?: T;
+        id?: T;
+      };
+  confidential?: T;
+  bypassCodingRestrictions?: T;
+  isSystem?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "vendors_select".
+ */
+export interface VendorsSelect<T extends boolean = true> {
+  vendorNumber?: T;
+  name?: T;
+  email?: T;
+  phone?: T;
+  addressLine1?: T;
+  addressLine2?: T;
+  city?: T;
+  province?: T;
+  postalCode?: T;
+  paymentTerms?: T;
+  active?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "gl-accounts_select".
+ */
+export interface GlAccountsSelect<T extends boolean = true> {
+  code?: T;
+  description?: T;
+  segments?:
+    | T
+    | {
+        value?: T;
+        id?: T;
+      };
+  active?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "dimensions_select".
+ */
+export interface DimensionsSelect<T extends boolean = true> {
+  kind?: T;
+  code?: T;
+  description?: T;
+  label?: T;
+  active?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "tax-codes_select".
+ */
+export interface TaxCodesSelect<T extends boolean = true> {
+  code?: T;
+  label?: T;
+  rate?: T;
+  recoverablePct?: T;
+  recoverableGl?: T;
+  apControlGl?: T;
+  active?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "stages_select".
+ */
+export interface StagesSelect<T extends boolean = true> {
+  systemId?: T;
+  label?: T;
+  order?: T;
+  tone?: T;
+  active?: T;
+  required?: T;
+  bulkAssign?: T;
+  batchAssign?: T;
+  verifyFlag?: T;
+  allowReject?: T;
+  allowReassign?: T;
+  fieldsEditableBy?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "sections_select".
+ */
+export interface SectionsSelect<T extends boolean = true> {
+  name?: T;
+  order?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "fields_select".
+ */
+export interface FieldsSelect<T extends boolean = true> {
+  fieldKey?: T;
+  label?: T;
+  scope?: T;
+  section?: T;
+  order?: T;
+  type?: T;
+  width?: T;
+  options?:
+    | T
+    | {
+        value?: T;
+        id?: T;
+      };
+  lookupEntity?: T;
+  mandatoryAtStages?: T;
+  showAsColumn?: T;
+  exportable?: T;
+  isSystem?: T;
+  removable?: T;
+  description?: T;
+  placeholder?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "documents_select".
+ */
+export interface DocumentsSelect<T extends boolean = true> {
+  invoice?: T;
+  uploadedBy?: T;
+  softDeleted?: T;
+  deletedReason?: T;
+  _key?: T;
+  prefix?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  url?: T;
+  thumbnailURL?: T;
+  filename?: T;
+  mimeType?: T;
+  filesize?: T;
+  width?: T;
+  height?: T;
+  focalX?: T;
+  focalY?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "batches_select".
+ */
+export interface BatchesSelect<T extends boolean = true> {
+  number?: T;
+  createdBy?: T;
+  closedAt?: T;
+  closedBy?: T;
+  note?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "invoices_select".
+ */
+export interface InvoicesSelect<T extends boolean = true> {
+  invoiceNumber?: T;
+  vendor?: T;
+  invoiceDate?: T;
+  dueDate?: T;
+  fiscalYear?: T;
+  poNumber?: T;
+  subtotal?: T;
+  totalTax?: T;
+  grandTotal?: T;
+  currentStage?: T;
+  departments?: T;
+  assignees?: T;
+  approvals?:
+    | T
+    | {
+        user?: T;
+        stage?: T;
+        status?: T;
+        at?: T;
+        comment?: T;
+        id?: T;
+      };
+  batch?: T;
+  verified?: T;
+  verifiedAt?: T;
+  verifiedBy?: T;
+  confidential?: T;
+  flags?:
+    | T
+    | {
+        noAttachment?: T;
+        ocrFailed?: T;
+        vendorSetupRequired?: T;
+        possibleDuplicate?: T;
+        archiveFailed?: T;
+        archiveAttempts?: T;
+      };
+  createdVia?: T;
+  ocrConfidence?: T;
+  customFields?: T;
+  documents?: T;
+  softDeleted?: T;
+  deletedReason?: T;
+  archivedAt?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "invoice-lines_select".
+ */
+export interface InvoiceLinesSelect<T extends boolean = true> {
+  invoice?: T;
+  order?: T;
+  glAccount?: T;
+  costCenter?: T;
+  project?: T;
+  fund?: T;
+  jobCode?: T;
+  amount?: T;
+  taxCode?: T;
+  taxAmount?: T;
+  recoverable?: T;
+  nonRecoverable?: T;
+  description?: T;
+  customLineFields?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "invoice-comments_select".
+ */
+export interface InvoiceCommentsSelect<T extends boolean = true> {
+  invoice?: T;
+  author?: T;
+  body?: T;
+  mentions?: T;
+  preview?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "audit-events_select".
+ */
+export interface AuditEventsSelect<T extends boolean = true> {
+  invoice?: T;
+  actor?: T;
+  action?: T;
+  context?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "approval-rules_select".
+ */
+export interface ApprovalRulesSelect<T extends boolean = true> {
+  name?: T;
+  order?: T;
+  enabled?: T;
+  conditions?: T;
+  approvers?:
+    | T
+    | {
+        type?: T;
+        user?: T;
+        role?: T;
+        department?: T;
+        id?: T;
+      };
+  mode?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "coding-restrictions_select".
+ */
+export interface CodingRestrictionsSelect<T extends boolean = true> {
+  department?: T;
+  rules?:
+    | T
+    | {
+        segmentIndex?: T;
+        operator?: T;
+        value?: T;
+        listValues?:
+          | T
+          | {
+              value?: T;
+              id?: T;
+            };
+        id?: T;
+      };
+  departmentLabel?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "email-templates_select".
+ */
+export interface EmailTemplatesSelect<T extends boolean = true> {
+  name?: T;
+  subject?: T;
+  bodyHtml?: T;
+  enabled?: T;
+  description?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "email-triggers_select".
+ */
+export interface EmailTriggersSelect<T extends boolean = true> {
+  name?: T;
+  event?: T;
+  stage?: T;
+  template?: T;
+  recipients?:
+    | T
+    | {
+        type?: T;
+        dynamicKey?: T;
+        role?: T;
+        user?: T;
+        email?: T;
+        id?: T;
+      };
+  cc?:
+    | T
+    | {
+        type?: T;
+        dynamicKey?: T;
+        role?: T;
+        user?: T;
+        email?: T;
+        id?: T;
+      };
+  enabled?: T;
   updatedAt?: T;
   createdAt?: T;
 }

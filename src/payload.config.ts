@@ -49,7 +49,7 @@ export default buildConfig({
 
 		uploadthingStorage({
 			collections: {
-				files: true,
+				documents: true,
 			},
 			options: {
 				token: process.env.UPLOADTHING_TOKEN,
