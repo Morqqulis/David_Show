@@ -39,10 +39,17 @@ export default async function AllRequestsPage({
                 <FilePlus className="h-4 w-4" />
                 New invoice
               </Link>
-              <button className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5 text-sm font-medium hover:bg-muted">
+              <a
+                href={`/api/export/invoices?${new URLSearchParams(
+                  Object.entries({ q: params.q, vendor: params.vendor, batch: params.batch, flag: params.flag })
+                    .filter(([, v]) => v != null && v !== '')
+                    .map(([k, v]) => [k, String(v)]) as [string, string][],
+                ).toString()}`}
+                className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5 text-sm font-medium hover:bg-muted"
+              >
                 <Download className="h-4 w-4" />
                 Export CSV
-              </button>
+              </a>
             </>
           }
         />

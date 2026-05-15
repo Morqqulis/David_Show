@@ -32,6 +32,7 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
             lines: data.lines as never,
             comments: data.comments as never,
             audit: data.audit as never,
+            documents: data.documents as never,
             defaultTab: 'header',
           }}
         />

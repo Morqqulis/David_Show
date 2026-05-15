@@ -3,11 +3,14 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { PanelLeftClose, PanelLeftOpen, Check, X, UserPlus, Send, Lock, Trash2 } from 'lucide-react'
+import { PanelLeftClose, PanelLeftOpen, Check, X, UserPlus, Send, Lock, Trash2, FileText, Download } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Button } from '@/components/ui/button'
 import { StageBadge } from './stage-badge'
 import { Money } from './money'
+import { PdfPreview, type PreviewDocument } from './pdf-preview'
+import { DocumentUpload } from './document-upload'
 import { formatDate, formatRelative, initials } from '@/backend/lib/formatting'
 import type { StageId } from '@/backend/lib/stage-ids'
 import { STAGE_LABELS, STAGE_ORDER } from '@/backend/lib/stage-ids'
@@ -19,6 +22,7 @@ import {
   setConfidential,
   softDeleteInvoice,
 } from '@/backend/actions/invoice-actions'
+import { deleteDocument } from '@/backend/actions/document-actions'
 
 export type InvoiceViewData = {
   invoice: {
@@ -59,12 +63,16 @@ export type InvoiceViewData = {
     author?: { name?: string }
   }>
   audit: Array<{ id: string | number; action: string; createdAt: string; actor?: { name?: string }; context?: Record<string, unknown> }>
+  documents?: Array<PreviewDocument & { uploadedBy?: { name?: string }; createdAt?: string }>
   defaultTab?: 'header' | 'coding' | 'files' | 'notes' | 'log'
 }
 
 export function InvoiceView({ data }: { data: InvoiceViewData }) {
   const router = useRouter()
+  const docs = data.documents ?? []
   const [previewCollapsed, setPreviewCollapsed] = useState(false)
+  const [activeDocId, setActiveDocId] = useState<string>(docs[0] ? String(docs[0].id) : '')
+  const activeDoc = docs.find((d) => String(d.id) === activeDocId) ?? docs[0]
   const [tab, setTab] = useState<string>(data.defaultTab ?? 'header')
   const [isPending, startTransition] = useTransition()
 
@@ -165,26 +173,38 @@ export function InvoiceView({ data }: { data: InvoiceViewData }) {
             >
               <PanelLeftOpen className="h-4 w-4" />
               <span className="rotate-180 [writing-mode:vertical-rl]">
-                {inv.invoiceNumber} · PDF
+                {activeDoc?.filename ?? `${inv.invoiceNumber} · no doc`}
               </span>
             </button>
           ) : (
             <>
-              <div className="flex items-center justify-between border-b border-border px-3 py-2 text-xs">
-                <span className="font-medium">{inv.invoiceNumber}.pdf</span>
-                <button
-                  onClick={() => setPreviewCollapsed(true)}
-                  className="grid h-7 w-7 place-items-center rounded hover:bg-muted"
-                  title="Collapse preview"
-                >
-                  <PanelLeftClose className="h-3.5 w-3.5" />
-                </button>
-              </div>
-              <div className="flex flex-1 items-center justify-center bg-[repeating-linear-gradient(45deg,#f8fafc,#f8fafc_10px,#f1f5f9_10px,#f1f5f9_20px)] text-xs text-muted-foreground">
-                <div className="text-center">
-                  <div className="font-medium">PDF preview placeholder</div>
-                  <div className="mt-1 text-[11px]">Drop a real PDF in /api/documents or wire UploadThing.</div>
+              <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2 text-xs">
+                <span className="flex min-w-0 items-center gap-1.5">
+                  <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span className="truncate font-medium">{activeDoc?.filename ?? `${inv.invoiceNumber} · no document`}</span>
+                </span>
+                <div className="flex items-center gap-1">
+                  {activeDoc?.url ? (
+                    <a
+                      href={activeDoc.url}
+                      download={activeDoc.filename}
+                      className="grid h-7 w-7 place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
+                      title="Download"
+                    >
+                      <Download className="h-3.5 w-3.5" />
+                    </a>
+                  ) : null}
+                  <button
+                    onClick={() => setPreviewCollapsed(true)}
+                    className="grid h-7 w-7 place-items-center rounded hover:bg-muted"
+                    title="Collapse preview"
+                  >
+                    <PanelLeftClose className="h-3.5 w-3.5" />
+                  </button>
                 </div>
+              </div>
+              <div className="flex-1 overflow-hidden">
+                <PdfPreview doc={activeDoc as PreviewDocument} invoiceNumber={inv.invoiceNumber} />
               </div>
             </>
           )}
@@ -208,7 +228,12 @@ export function InvoiceView({ data }: { data: InvoiceViewData }) {
                 <CodingTab invoiceId={inv.id} lines={data.lines} totals={{ subtotal: inv.subtotal, tax: inv.totalTax, total: inv.grandTotal }} />
               </TabsContent>
               <TabsContent value="files" className="m-0">
-                <FilesTab />
+                <FilesTab
+                  invoiceId={inv.id}
+                  documents={docs}
+                  activeDocId={activeDocId}
+                  setActiveDocId={setActiveDocId}
+                />
               </TabsContent>
               <TabsContent value="notes" className="m-0">
                 <NotesTab invoiceId={inv.id} comments={data.comments} />
@@ -412,13 +437,81 @@ function CodingTab({
   )
 }
 
-function FilesTab() {
+function FilesTab({
+  invoiceId,
+  documents,
+  activeDocId,
+  setActiveDocId,
+}: {
+  invoiceId: string | number
+  documents: Array<PreviewDocument & { uploadedBy?: { name?: string }; createdAt?: string }>
+  activeDocId: string
+  setActiveDocId: (id: string) => void
+}) {
+  const router = useRouter()
+  const [, startTransition] = useTransition()
+
+  function onDelete(docId: string | number, filename?: string) {
+    if (!confirm(`Remove ${filename ?? 'this document'} from this invoice?`)) return
+    startTransition(async () => {
+      await deleteDocument(docId, invoiceId)
+      toast.success('Document removed')
+      if (String(docId) === activeDocId) setActiveDocId('')
+      router.refresh()
+    })
+  }
+
   return (
-    <div className="rounded-md border border-dashed border-border bg-muted/30 p-8 text-center text-sm text-muted-foreground">
-      <div className="font-medium">No documents attached yet</div>
-      <p className="mt-1 text-xs">
-        File uploads use UploadThing. In demo mode this is a stub — wire the storage adapter to enable real uploads.
-      </p>
+    <div className="space-y-4">
+      <DocumentUpload invoiceId={invoiceId} />
+      {documents.length === 0 ? (
+        <div className="rounded-md border border-dashed border-border bg-muted/30 p-6 text-center text-sm text-muted-foreground">
+          No documents yet. Upload above — PDFs, Word, and images are supported.
+        </div>
+      ) : (
+        <ul className="divide-y divide-border rounded-md border border-border">
+          {documents.map((d) => {
+            const isActive = String(d.id) === activeDocId
+            return (
+              <li
+                key={String(d.id)}
+                className={cn(
+                  'flex items-center gap-3 px-3 py-2',
+                  isActive ? 'bg-primary/5' : 'hover:bg-muted/40',
+                )}
+              >
+                <button
+                  onClick={() => setActiveDocId(String(d.id))}
+                  className="flex flex-1 items-center gap-3 text-left"
+                >
+                  <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm font-medium">{d.filename}</div>
+                    <div className="text-[11px] text-muted-foreground">
+                      {d.filesize ? `${(d.filesize / 1024).toFixed(0)} KB` : ''}
+                      {d.uploadedBy?.name ? ` · uploaded by ${d.uploadedBy.name}` : ''}
+                      {d.createdAt ? ` · ${formatRelative(d.createdAt)}` : ''}
+                    </div>
+                  </div>
+                </button>
+                {d.url ? (
+                  <a
+                    href={d.url}
+                    download={d.filename}
+                    className="inline-flex h-7 w-7 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
+                    title="Download"
+                  >
+                    <Download className="h-3.5 w-3.5" />
+                  </a>
+                ) : null}
+                <Button size="icon" variant="ghost" onClick={() => onDelete(d.id, d.filename)}>
+                  <Trash2 className="h-3.5 w-3.5 text-red-600" />
+                </Button>
+              </li>
+            )
+          })}
+        </ul>
+      )}
     </div>
   )
 }

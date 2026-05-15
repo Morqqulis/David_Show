@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { Plus, Save, Trash2, AlertTriangle, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
+import { Plus, Save, Trash2, AlertTriangle, PanelLeftClose, PanelLeftOpen, FileText } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -13,6 +13,7 @@ import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, Table
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Money } from './money'
 import { Badge } from '@/components/ui/badge'
+import { PdfPreview, type PreviewDocument } from './pdf-preview'
 import { computeLine } from '@/backend/lib/tax-math'
 import { saveLine, deleteLine } from '@/backend/actions/invoice-actions'
 import { StageBadge } from './stage-badge'
@@ -41,6 +42,7 @@ export type CodingLine = {
 export function CodingScreen({
   invoice,
   lines: initialLines,
+  documents,
   options,
 }: {
   invoice: {
@@ -53,6 +55,7 @@ export function CodingScreen({
     currentStage?: { systemId: StageId; label?: string }
   }
   lines: CodingLine[]
+  documents?: PreviewDocument[]
   options: {
     gls: GL[]
     taxCodes: Tax[]
@@ -61,6 +64,7 @@ export function CodingScreen({
     funds: Dim[]
   }
 }) {
+  const activeDoc = documents?.[0]
   const [lines, setLines] = useState<CodingLine[]>(() => initialLines)
   const [previewCollapsed, setPreviewCollapsed] = useState(false)
   const [, startTransition] = useTransition()
@@ -180,12 +184,17 @@ export function CodingScreen({
               title="Expand preview"
             >
               <PanelLeftOpen className="h-4 w-4" />
-              <span className="rotate-180 [writing-mode:vertical-rl]">{invoice.invoiceNumber}</span>
+              <span className="rotate-180 [writing-mode:vertical-rl]">
+                {activeDoc?.filename ?? invoice.invoiceNumber}
+              </span>
             </button>
           ) : (
             <>
               <div className="flex items-center justify-between border-b border-border px-3 py-2 text-xs">
-                <span className="font-medium">{invoice.invoiceNumber}.pdf</span>
+                <span className="flex min-w-0 items-center gap-1.5">
+                  <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span className="truncate font-medium">{activeDoc?.filename ?? `${invoice.invoiceNumber} · no document`}</span>
+                </span>
                 <button
                   onClick={() => setPreviewCollapsed(true)}
                   className="grid h-7 w-7 place-items-center rounded hover:bg-muted"
@@ -193,10 +202,8 @@ export function CodingScreen({
                   <PanelLeftClose className="h-3.5 w-3.5" />
                 </button>
               </div>
-              <div className="flex flex-1 items-center justify-center bg-[repeating-linear-gradient(45deg,#f8fafc,#f8fafc_10px,#f1f5f9_10px,#f1f5f9_20px)] text-xs text-muted-foreground">
-                <div className="text-center">
-                  <div className="font-medium">PDF preview placeholder</div>
-                </div>
+              <div className="flex-1 overflow-hidden">
+                <PdfPreview doc={activeDoc} invoiceNumber={invoice.invoiceNumber} />
               </div>
             </>
           )}

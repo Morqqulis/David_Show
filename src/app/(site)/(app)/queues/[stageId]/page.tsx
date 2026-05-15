@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation'
+import { Download } from 'lucide-react'
 import { Topbar } from '@/components/app/topbar'
 import { PageHeader } from '@/components/app/page-header'
 import { StagePillBar } from '@/components/app/stage-pill-bar'
@@ -43,6 +44,15 @@ export default async function QueuePage({
         <PageHeader
           title={STAGE_LABELS[stageId]}
           description={STAGE_DESCRIPTIONS[stageId]}
+          actions={
+            <a
+              href={`/api/export/invoices?stage=${stageId}`}
+              className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5 text-sm font-medium hover:bg-muted"
+            >
+              <Download className="h-4 w-4" />
+              Export CSV
+            </a>
+          }
         />
         <StagePillBar counts={counts} activeStage={stageId} />
         <div className="text-sm text-muted-foreground">

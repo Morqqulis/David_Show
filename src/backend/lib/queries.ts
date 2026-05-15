@@ -159,7 +159,25 @@ export async function getInvoiceWithLines(rawId: string | number) {
     sort: '-createdAt',
     limit: 200,
   })
-  return { invoice, lines: lines.docs, comments: comments.docs, audit: audit.docs }
+  const documents = await payload.find({
+    collection: 'documents',
+    where: {
+      and: [
+        { invoice: { equals: id } },
+        { softDeleted: { not_equals: true } },
+      ],
+    } as never,
+    depth: 1,
+    sort: '-createdAt',
+    limit: 50,
+  })
+  return {
+    invoice,
+    lines: lines.docs,
+    comments: comments.docs,
+    audit: audit.docs,
+    documents: documents.docs,
+  }
 }
 
 export async function getStageBySystemId(systemId: StageId) {

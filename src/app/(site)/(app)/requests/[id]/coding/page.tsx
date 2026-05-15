@@ -41,6 +41,7 @@ export default async function CodingPage({ params }: { params: Promise<{ id: str
         <CodingScreen
           invoice={data.invoice as never}
           lines={data.lines as never}
+          documents={data.documents as never}
           options={{
             gls: gls.docs as never,
             taxCodes: taxCodes.docs as never,
