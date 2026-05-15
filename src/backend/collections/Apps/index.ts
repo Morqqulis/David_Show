@@ -1,4 +1,4 @@
-import { CollectionConfig } from 'payload'
+import type { CollectionConfig } from 'payload'
 
 export const Apps: CollectionConfig = {
    slug: 'apps',
@@ -11,10 +11,6 @@ export const Apps: CollectionConfig = {
          name: 'description',
          type: 'text',
       },
-      {
-         name: 'image',
-         type: 'upload',
-         relationTo: 'media',
-      },
+
    ],
 }

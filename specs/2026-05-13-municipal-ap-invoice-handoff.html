@@ -1,0 +1,1253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AuroraAP — Developer Handoff</title>
+<style>
+  :root {
+    --blue: #3B6EE5;
+    --blue-dark: #2B5CD9;
+    --slate: #1E293B;
+    --bg: #F4F5F7;
+    --surface: #FFFFFF;
+    --surface-soft: #F8F9FB;
+    --border: #E5E7EB;
+    --border-strong: #D1D5DB;
+    --text: #1F2937;
+    --text-muted: #6B7280;
+    --text-subtle: #9CA3AF;
+    --c-blue-bg: #DBEAFE;     --c-blue-fg: #1E40AF;
+    --c-violet-bg: #EDE9FE;   --c-violet-fg: #5B21B6;
+    --c-green-bg: #DCFCE7;    --c-green-fg: #166534;
+    --c-amber-bg: #FEF3C7;    --c-amber-fg: #92400E;
+    --c-red-bg: #FEE2E2;      --c-red-fg: #991B1B;
+    --shadow-card: 0 1px 3px rgba(15,23,42,0.06), 0 1px 2px rgba(15,23,42,0.04);
+    --shadow-elevated: 0 10px 30px rgba(15,23,42,0.10);
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    font-family: 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
+    color: var(--text); background: var(--bg);
+    font-size: 14px; line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--blue); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  code, .mono {
+    font-family: 'JetBrains Mono', 'Cascadia Code', 'Consolas', monospace;
+    background: var(--surface-soft);
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 12px;
+    border: 1px solid var(--border);
+  }
+
+  /* COVER */
+  .cover {
+    background: linear-gradient(135deg, var(--blue) 0%, var(--blue-dark) 100%);
+    color: #fff;
+    padding: 64px 48px 56px;
+    position: relative;
+    overflow: hidden;
+  }
+  .cover::after {
+    content: "";
+    position: absolute;
+    right: -160px; top: -160px;
+    width: 500px; height: 500px;
+    border: 100px solid rgba(255,255,255,0.06);
+    border-radius: 50%;
+  }
+  .cover-mark {
+    position: absolute; top: 32px; right: 48px;
+    text-align: right;
+  }
+  .cover-mark .by { font-size: 10px; letter-spacing: 0.8px; color: rgba(255,255,255,0.65); }
+  .cover-mark .name { font-size: 14px; font-weight: 600; }
+  .cover .badge {
+    display: inline-block;
+    background: rgba(255,255,255,0.18);
+    padding: 6px 14px; border-radius: 999px;
+    font-size: 12px; letter-spacing: 0.8px;
+    text-transform: uppercase; font-weight: 600;
+    margin-bottom: 16px;
+  }
+  .cover h1 { margin: 0 0 12px; font-size: 42px; font-weight: 700; letter-spacing: -0.6px; }
+  .cover .sub { font-size: 18px; opacity: 0.92; max-width: 800px; margin: 0; }
+  .cover .files {
+    margin-top: 32px;
+    display: flex; gap: 20px; flex-wrap: wrap;
+  }
+  .cover .files .file {
+    background: rgba(255,255,255,0.12);
+    border: 1px solid rgba(255,255,255,0.18);
+    padding: 12px 16px; border-radius: 8px;
+    font-size: 13px;
+  }
+  .cover .files .file strong { display: block; font-weight: 600; margin-bottom: 2px; }
+  .cover .files .file a { color: #fff; text-decoration: underline; }
+
+  .container { max-width: 1280px; margin: 0 auto; padding: 0 32px; }
+
+  /* TOC */
+  .toc {
+    background: var(--surface);
+    border-radius: 12px;
+    box-shadow: var(--shadow-card);
+    padding: 28px 32px;
+    margin: -36px auto 40px;
+    position: relative; z-index: 2;
+  }
+  .toc h2 {
+    margin: 0 0 18px;
+    font-size: 16px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text-muted);
+  }
+  .toc-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px 40px;
+  }
+  .toc-group { }
+  .toc-group h3 {
+    margin: 0 0 8px;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--blue);
+    border-bottom: 2px solid var(--c-blue-bg);
+    padding-bottom: 4px;
+  }
+  .toc-group ul { list-style: none; padding: 0; margin: 0; }
+  .toc-group li { padding: 4px 0; font-size: 13px; }
+  .toc-group a { color: var(--text); }
+  .toc-group a:hover { color: var(--blue); }
+
+  /* PAGE SECTION */
+  .page {
+    margin: 56px 0;
+    padding-top: 24px;
+    border-top: 4px solid var(--blue);
+  }
+  .page:first-of-type { border-top: none; padding-top: 0; }
+  .page-head {
+    display: flex; align-items: baseline;
+    gap: 16px; flex-wrap: wrap;
+    margin-bottom: 12px;
+  }
+  .page-num {
+    background: var(--blue);
+    color: #fff;
+    border-radius: 8px;
+    padding: 4px 10px;
+    font-size: 13px; font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+  .page-title {
+    margin: 0;
+    font-size: 28px; font-weight: 700;
+    letter-spacing: -0.4px;
+  }
+  .page-route {
+    color: var(--text-muted);
+    font-size: 13px;
+    margin-bottom: 16px;
+  }
+  .page-route code { font-size: 12px; }
+
+  .page-grid {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr;
+    gap: 24px;
+    align-items: start;
+  }
+  .preview-card {
+    background: var(--surface);
+    border-radius: 12px;
+    box-shadow: var(--shadow-card);
+    overflow: hidden;
+    position: sticky;
+    top: 16px;
+  }
+  .preview-bar {
+    background: #1F2937;
+    color: #cbd5e1;
+    padding: 8px 14px;
+    font-size: 11px;
+    display: flex; align-items: center; gap: 12px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .preview-dots { display: flex; gap: 5px; }
+  .preview-dots span { width: 9px; height: 9px; border-radius: 50%; background: #475569; }
+  .preview-dots span:nth-child(1) { background: #ef4444; }
+  .preview-dots span:nth-child(2) { background: #f59e0b; }
+  .preview-dots span:nth-child(3) { background: #10b981; }
+  .preview-bar .url { flex: 1; color: #e2e8f0; }
+  .preview-bar .open {
+    background: rgba(255,255,255,0.1);
+    color: #fff;
+    padding: 3px 10px; border-radius: 4px;
+    text-decoration: none;
+    font-size: 11px;
+  }
+  .preview-bar .open:hover { background: rgba(255,255,255,0.2); }
+  .preview-iframe-wrap {
+    height: 640px;
+    background: #f3f4f6;
+    overflow: hidden;
+  }
+  .preview-iframe-wrap iframe {
+    width: 100%;
+    height: 100%;
+    border: 0;
+    display: block;
+  }
+  .preview-caption {
+    padding: 10px 14px;
+    background: var(--surface-soft);
+    color: var(--text-muted);
+    font-size: 11px;
+    border-top: 1px solid var(--border);
+  }
+
+  /* SCREENSHOT FALLBACK
+     Live iframe is shown in browser. Static PNG (if present) is shown in print.
+     If the PNG is missing, a placeholder note explains what to capture. */
+  .preview-print-note { display: none !important; }
+  .preview-image-wrap { display: none; background: #f3f4f6; }
+  .preview-image-wrap img { width: 100%; display: block; }
+  .preview-image-wrap .missing-note {
+    display: none;
+    padding: 60px 24px;
+    background: var(--surface-soft);
+    color: var(--text-muted);
+    text-align: center;
+    font-size: 12px;
+    border-top: 1px solid var(--border);
+  }
+  .preview-image-wrap.missing img { display: none; }
+  .preview-image-wrap.missing .missing-note { display: block; }
+
+  @media print {
+    .preview-iframe-wrap { display: none !important; }
+    .preview-image-wrap { display: block !important; }
+    .page { page-break-before: always; }
+    .toc, .cover { page-break-after: always; }
+    body { background: #fff; }
+    .preview-card { box-shadow: none; border: 1px solid var(--border); position: static; }
+  }
+
+  /* DETAIL */
+  .detail h3 {
+    margin: 0 0 8px;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+  }
+  .detail h3:not(:first-child) { margin-top: 22px; }
+  .detail p { margin: 0 0 12px; }
+  .detail ul, .detail ol {
+    margin: 0; padding: 0 0 0 20px;
+  }
+  .detail li { margin-bottom: 6px; }
+  .detail .req-list {
+    counter-reset: req;
+    list-style: none;
+    padding: 0;
+  }
+  .detail .req-list > li {
+    counter-increment: req;
+    padding: 8px 0 8px 36px;
+    border-bottom: 1px solid var(--border);
+    position: relative;
+  }
+  .detail .req-list > li:last-child { border-bottom: none; }
+  .detail .req-list > li::before {
+    content: "R" counter(req);
+    position: absolute;
+    left: 0; top: 8px;
+    background: var(--c-blue-bg);
+    color: var(--c-blue-fg);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+  .detail .req-list strong { color: var(--text); }
+  .pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--c-blue-bg); color: var(--c-blue-fg);
+    padding: 2px 10px; border-radius: 999px;
+    font-size: 11px; font-weight: 600;
+  }
+  .pill.green { background: var(--c-green-bg); color: var(--c-green-fg); }
+  .pill.amber { background: var(--c-amber-bg); color: var(--c-amber-fg); }
+  .pill.violet { background: var(--c-violet-bg); color: var(--c-violet-fg); }
+  .pill.red { background: var(--c-red-bg); color: var(--c-red-fg); }
+
+  .xref {
+    background: var(--surface-soft);
+    border-left: 3px solid var(--blue);
+    border-radius: 4px;
+    padding: 10px 14px;
+    margin-top: 8px;
+    font-size: 12px;
+  }
+  .xref strong { color: var(--text-muted); text-transform: uppercase; font-size: 10px; letter-spacing: 0.5px; }
+
+  /* SECTION DIVIDER (groups) */
+  .group-divider {
+    margin: 80px 0 0;
+    padding: 24px 0 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .group-divider .label {
+    font-size: 11px; font-weight: 700;
+    color: var(--blue);
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+  }
+  .group-divider h2 {
+    margin: 4px 0 0;
+    font-size: 24px; font-weight: 700;
+  }
+
+  footer.handoff-footer {
+    margin-top: 80px;
+    padding: 32px;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    text-align: center;
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+</style>
+</head>
+<body>
+
+<!-- ============================================ COVER -->
+<div class="cover">
+  <div class="cover-mark">
+    <div class="by">POWERED BY</div>
+    <div class="name">stoneshare</div>
+  </div>
+  <div class="badge">Developer Handoff · v1</div>
+  <h1>AuroraAP — Municipal AP Invoice Application</h1>
+  <p class="sub">Page-by-page build reference for the development team. Each section pairs a live preview of the screen with its purpose, the explicit requirements that screen carries, and pointers into the functional design document for full context.</p>
+  <div class="files">
+    <div class="file">
+      <strong>Functional Design (full spec)</strong>
+      <a href="2026-05-13-municipal-ap-invoice-design.md" target="_blank">2026-05-13-municipal-ap-invoice-design.md</a>
+    </div>
+    <div class="file">
+      <strong>Interactive Mockup</strong>
+      <a href="2026-05-13-municipal-ap-invoice-mockup.html" target="_blank">2026-05-13-municipal-ap-invoice-mockup.html</a>
+    </div>
+    <div class="file">
+      <strong>This Handoff</strong>
+      2026-05-13-municipal-ap-invoice-handoff.html
+    </div>
+  </div>
+</div>
+
+<div class="container">
+
+<!-- ============================================ TABLE OF CONTENTS -->
+<div class="toc">
+  <h2>Contents</h2>
+  <div class="toc-grid">
+    <div class="toc-group">
+      <h3>Workflow Pages</h3>
+      <ul>
+        <li><a href="#home">1. Home / Dashboard</a></li>
+        <li><a href="#all-requests">2. All Requests</a></li>
+        <li><a href="#to-be-assigned">3. To Be Assigned</a></li>
+        <li><a href="#to-be-coded">4. To Be Coded</a></li>
+        <li><a href="#conditional-approvals">5. Conditional Approvals</a></li>
+        <li><a href="#ap-review">6. AP Review</a></li>
+        <li><a href="#ready-for-processing">7. Ready for Processing</a></li>
+        <li><a href="#processed">8. Processed</a></li>
+        <li><a href="#treasurer-review">9. Treasurer Review</a></li>
+        <li><a href="#completed">10. Completed</a></li>
+      </ul>
+    </div>
+    <div class="toc-group">
+      <h3>Detail &amp; Entry Pages</h3>
+      <ul>
+        <li><a href="#invoice">11. Invoice Screen</a></li>
+        <li><a href="#coding">12. Coding Screen</a></li>
+        <li><a href="#create-invoice">13. Create Invoice</a></li>
+      </ul>
+      <h3 style="margin-top:18px;">Email</h3>
+      <ul>
+        <li><a href="#email-templates">14. Email — Templates</a></li>
+        <li><a href="#email-triggers">15. Email — Triggers</a></li>
+        <li><a href="#email-settings">16. Email — Settings</a></li>
+      </ul>
+    </div>
+    <div class="toc-group">
+      <h3>Admin / Configuration</h3>
+      <ul>
+        <li><a href="#settings-workflow">17. Settings — Workflow</a></li>
+        <li><a href="#settings-fields">18. Settings — Fields</a></li>
+        <li><a href="#settings-coding-restrictions">19. Settings — Coding Restrictions</a></li>
+        <li><a href="#settings-tax">20. Settings — Tax Codes</a></li>
+        <li><a href="#settings-rules">21. Settings — Approval Rules</a></li>
+        <li><a href="#settings-rbac">22. Settings — Roles &amp; Permissions</a></li>
+        <li><a href="#settings-other">23. Settings — Other Tabs</a></li>
+        <li><a href="#trash">24. Trash (Deleted Records)</a></li>
+        <li><a href="#alerts">25. Alerts (Archive Failures)</a></li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================ GROUP 1 -->
+<div class="group-divider">
+  <div class="label">Part 1</div>
+  <h2>Workflow Pages</h2>
+</div>
+
+<!-- =========================== 1. HOME -->
+<section class="page" id="home">
+  <div class="page-head"><span class="page-num">1</span><h2 class="page-title">Home / Dashboard</h2></div>
+  <div class="page-route">Route: <code>#home</code> · Sidebar: <strong>Home</strong> (top item)</div>
+  <div class="page-grid">
+    <div class="preview-card">
+      <div class="preview-bar"><div class="preview-dots"><span></span><span></span><span></span></div><span class="url">app://home</span><a class="open" href="2026-05-13-municipal-ap-invoice-mockup.html#home" target="_blank">Open ↗</a></div>
+      <div class="preview-iframe-wrap"><iframe src="2026-05-13-municipal-ap-invoice-mockup.html#home" loading="lazy"></iframe></div>
+      <div class="preview-print-note">Capture screenshot of <code>#home</code> here when generating PDF.</div>
+      <div class="preview-caption">Welcome page · 4 KPI cards · Quick Access list · Recent Activity</div>
+    </div>
+    <div class="detail">
+      <h3>What this page does</h3>
+      <p>Landing screen after sign-in. Gives the AP user an at-a-glance read on what they need to act on today and quick jumps into the most-used queues.</p>
+
+      <h3>Requirements</h3>
+      <ol class="req-list">
+        <li>Hero header with the municipality name, app name, current date, and a one-line description of the application.</li>
+        <li>A primary <strong>+ New Invoice</strong> CTA card on the left of the stats row that routes to <code>#create-invoice</code>.</li>
+        <li>Four stat cards along the top: <strong>In My Queues</strong>, <strong>Pending My Action</strong>, <strong>Alerts</strong> (red), and <strong>On-Time Rate</strong>. Counts are computed live from the user's queues, OCR/duplicate flags, and archive-failure list.</li>
+        <li><strong>Quick Access</strong> list — a card showing the queues that matter most to this user (To Be Assigned, To Be Coded, AP Review, Treasurer Review by default). Each row has a colored count pill matching the stage color, the queue name, a one-line meta detail (e.g., "5 in your dept"), and routes to that queue on click.</li>
+        <li><strong>Recent Activity</strong> timeline — last ~5 system-wide actions (close_batch, approve, reject, code, ingest). Same event format as the per-invoice Log tab. Read-only; this is awareness, not action.</li>
+        <li>Layout is two-column on wide screens (Quick Access + Activity side-by-side) and stacks on narrow.</li>
+        <li>No table on this page — All Requests is one click away via the sidebar or the "View all requests →" link in the Quick Access header.</li>
+      </ol>
+
+      <div class="xref"><strong>Spec reference:</strong> none specifically — this is the assembled landing view of stats and shortcuts derived from queues and audit log. Stage list comes from Section 4.</div>
+    </div>
+  </div>
+</section>
+
+<!-- =========================== 2. ALL REQUESTS -->
+<section class="page" id="all-requests">
+  <div class="page-head"><span class="page-num">2</span><h2 class="page-title">All Requests</h2></div>
+  <div class="page-route">Route: <code>#all-requests</code> · Sidebar: <strong>Requests</strong></div>
+  <div class="page-grid">
+    <div class="preview-card">
+      <div class="preview-bar"><div class="preview-dots"><span></span><span></span><span></span></div><span class="url">app://all-requests</span><a class="open" href="2026-05-13-municipal-ap-invoice-mockup.html#all-requests" target="_blank">Open ↗</a></div>
+      <div class="preview-iframe-wrap"><iframe src="2026-05-13-municipal-ap-invoice-mockup.html#all-requests" loading="lazy"></iframe></div>
+      <div class="preview-print-note">Capture screenshot of <code>#all-requests</code> here when generating PDF.</div>
+      <div class="preview-caption">Master list of every invoice across every stage · stage pill nav · row stats · expandable rows</div>
+    </div>
+    <div class="detail">
+      <h3>What this page does</h3>
+      <p>The master list of every invoice in the system across every stage. Doubles as the global search surface and the entry point to the inline preview/coding view.</p>
+
+      <h3>Requirements</h3>
+      <ol class="req-list">
+        <li><strong>Stage pill bar</strong> at the top: one pill per stage (All, To Be Assigned, To Be Coded, Conditional Approvals, AP Review, Ready for Processing, Processed, Treasurer Review, Completed). Each pill carries a live count. Active pill is filled blue; clicking scopes the table.</li>
+        <li><strong>Stat row</strong> showing per-stage counts (subset of the most useful ones).</li>
+        <li><strong>Toolbar:</strong> global free-text search input, vendor filter, department filter, date range pickers, columns selector button.</li>
+        <li><strong>Search</strong> spans invoice number, vendor, batch number, date range, amount, and free text in comments and notes. (Section 8.7)</li>
+        <li><strong>Configurable columns</strong> driven by Settings → Fields. Any field with "Show as column on All Requests" enabled appears as a column. No saved views in v1 — per-user show/hide only. (Section 8.8)</li>
+        <li><strong>Inline row expansion:</strong> each row has an expand chevron at the left. Expanding shows a two-pane card under the row with the invoice preview (left) and the coding table (right) — both editable inline if the user has permission at the current stage. (Section 8.8a)</li>
+        <li>Each row also has an <strong>Open ↗</strong> button that navigates to the dedicated Invoice screen (<code>#invoice</code>) for full split-view + activity tabs.</li>
+        <li><strong>Row flags:</strong> rows marked OCR Failed, Vendor Setup Required, or Low OCR Confidence get an amber row tint and a small inline pill in the Vendor cell.</li>
+        <li><strong>Bulk actions</strong> via the checkbox column: assign, batch # apply, approve, reassign, export. (Section 8.6)</li>
+        <li>Status pill colors are consistent with the stage colors used on Home and the queue pages.</li>
+        <li>Pagination: pager at the bottom with total record count.</li>
+      </ol>
+
+      <div class="xref"><strong>Spec references:</strong> §8.7 Global Search · §8.8 All Requests Screen · §8.8a Inline row expansion · §8.6 Bulk Actions · §5a Field-driven columns.</div>
+    </div>
+  </div>
+</section>
+
+<!-- =========================== 3. TO BE ASSIGNED -->
+<section class="page" id="to-be-assigned">
+  <div class="page-head"><span class="page-num">3</span><h2 class="page-title">To Be Assigned</h2></div>
+  <div class="page-route">Route: <code>#to-be-assigned</code> · Sidebar: <strong>Queues</strong> (default landing)</div>
+  <div class="page-grid">
+    <div class="preview-card">
+      <div class="preview-bar"><div class="preview-dots"><span></span><span></span><span></span></div><span class="url">app://to-be-assigned</span><a class="open" href="2026-05-13-municipal-ap-invoice-mockup.html#to-be-assigned" target="_blank">Open ↗</a></div>
+      <div class="preview-iframe-wrap"><iframe src="2026-05-13-municipal-ap-invoice-mockup.html#to-be-assigned" loading="lazy"></iframe></div>
+      <div class="preview-print-note">Capture screenshot of <code>#to-be-assigned</code> here when generating PDF.</div>
+      <div class="preview-caption">Stage 1 of 8 · intake landing zone · OCR/vendor flags surfaced</div>
+    </div>
+    <div class="detail">
+      <h3>What this page does</h3>
+      <p>Initial queue for every newly created invoice (email or manual). AP staff triage flagged items, assign to coders or departments (single or bulk), and set the Vendor Setup Required flag where needed.</p>
+
+      <h3>Requirements</h3>
+      <ol class="req-list">
+        <li>Hero with stage label and a one-line description; <strong>Bulk Assign</strong> and <strong>↓ Export</strong> in the hero actions.</li>
+        <li><strong>Stage pill bar</strong> at the top (same as All Requests) with the active pill highlighted.</li>
+        <li><strong>Banner</strong> summarizing flagged requests count with a one-line breakdown (e.g., "1 OCR failed, 1 unmatched vendor, 1 low-confidence vendor match").</li>
+        <li><strong>Toolbar:</strong> search, flag filter (All flags / OCR Failed / Vendor Setup Required / Low Confidence), sort selector (Oldest first / Newest first / Amount).</li>
+        <li>Table columns: <code>Received</code>, <code>Invoice #</code>, <code>Vendor</code>, <code>Flags</code>, <code>Amount</code>, <code>Source</code>, per-row <strong>Assign</strong> action.</li>
+        <li>Flag pills are red for hard errors (OCR Failed, Vendor Setup Req.), amber for warnings (Low Confidence with extracted %).</li>
+        <li>Source column shows where the request originated (Email or Manual + creator).</li>
+        <li><strong>Vendor Setup Required</strong> blocks advancement: AP can either select an existing vendor from the synced list or wait for the new vendor to be added in the ERP and synced. (Section 6.3)</li>
+        <li><strong>Bulk assign</strong> is configurable per-stage (per Section 4a) and is enabled here by default.</li>
+      </ol>
+
+      <div class="xref"><strong>Spec references:</strong> §6.3 To Be Assigned · §6.1 OCR/intake edge cases · §4a per-stage Bulk Assign config.</div>
+    </div>
+  </div>
+</section>
+
+<!-- =========================== 4. TO BE CODED -->
+<section class="page" id="to-be-coded">
+  <div class="page-head"><span class="page-num">4</span><h2 class="page-title">To Be Coded / Department Review</h2></div>
+  <div class="page-route">Route: <code>#to-be-coded</code></div>
+  <div class="page-grid">
+    <div class="preview-card">
+      <div class="preview-bar"><div class="preview-dots"><span></span><span></span><span></span></div><span class="url">app://to-be-coded</span><a class="open" href="2026-05-13-municipal-ap-invoice-mockup.html#to-be-coded" target="_blank">Open ↗</a></div>
+      <div class="preview-iframe-wrap"><iframe src="2026-05-13-municipal-ap-invoice-mockup.html#to-be-coded" loading="lazy"></iframe></div>
+      <div class="preview-print-note">Capture screenshot of <code>#to-be-coded</code> here when generating PDF.</div>
+      <div class="preview-caption">Stage 2 of 8 · per-row coding status · clicks open Coding screen</div>
+    </div>
+    <div class="detail">
+      <h3>What this page does</h3>
+      <p>Coders' work queue. Lists invoices assigned to the current user or their department for GL coding plus approval. Multi-recipient assignments are common — both assignees must approve, but only one needs to fully complete the coding table.</p>
+
+      <h3>Requirements</h3>
+      <ol class="req-list">
+        <li>Stage pill bar with To Be Coded active.</li>
+        <li>Hero actions: <strong>Reassign</strong> and <strong>Bulk Approve</strong>.</li>
+        <li>Toolbar: search, scope selector (All assigned to me / My department / All).</li>
+        <li>Table columns: Invoice #, Vendor, Department, Co-assignees, Coding (status pill: Coded / Partial / —), Amount, Assigned (relative time).</li>
+        <li>Multi-recipient: when an invoice has multiple assignees, all must approve; only one needs to fully fill the coding table. (Section 6.4)</li>
+        <li>Clicking a row routes to the dedicated <strong>Coding screen</strong> (<code>#coding</code>) for that invoice.</li>
+        <li>Bulk approve allows selected invoices' co-assignee to register their approval at once.</li>
+      </ol>
+
+      <div class="xref"><strong>Spec references:</strong> §6.4 To Be Coded / Department Review.</div>
+    </div>
+  </div>
+</section>
+
+<!-- =========================== 5. CONDITIONAL APPROVALS -->
+<section class="page" id="conditional-approvals">
+  <div class="page-head"><span class="page-num">5</span><h2 class="page-title">Conditional Approvals</h2></div>
+  <div class="page-route">Route: <code>#conditional-approvals</code></div>
+  <div class="page-grid">
+    <div class="preview-card">
+      <div class="preview-bar"><div class="preview-dots"><span></span><span></span><span></span></div><span class="url">app://conditional-approvals</span><a class="open" href="2026-05-13-municipal-ap-invoice-mockup.html#conditional-approvals" target="_blank">Open ↗</a></div>
+      <div class="preview-iframe-wrap"><iframe src="2026-05-13-municipal-ap-invoice-mockup.html#conditional-approvals" loading="lazy"></iframe></div>
+      <div class="preview-print-note">Capture screenshot of <code>#conditional-approvals</code> here when generating PDF.</div>
+      <div class="preview-caption">Stage 3 of 8 · only invoices that triggered at least one rule appear; auto-skipped otherwise</div>
+    </div>
+    <div class="detail">
+      <h3>What this page does</h3>
+      <p>Stage between coding and AP review where invoices that match one or more <strong>approval rules</strong> are routed to additional approvers (CAO sign-off, Library Director on Library invoices, etc.). Invoices that don't trigger any rule auto-skip this stage entirely.</p>
+
+      <h3>Requirements</h3>
+      <ol class="req-list">
+        <li>Stage pill bar with Conditional Approvals active.</li>
+        <li>Table columns: Invoice #, Vendor, Department, <strong>Triggered Rule(s)</strong> (one or more pills naming the matched rules), Amount, Co-approvers, Routed (relative time), per-row <strong>Reject</strong> + <strong>Approve</strong> actions.</li>
+        <li>Multiple matching rules add together (deduplicated) — every approver from every matched rule is required. (Section 6.5)</li>
+        <li>Required approvers per rule default to <strong>Parallel</strong> (both notified at once, both must approve). Configurable per rule.</li>
+        <li>Reject path: same pattern as elsewhere — reason required, rejecter chooses destination stage. (Section 8.4)</li>
+        <li>Approval rules themselves are configured in Settings → Approval Rules (page 21 in this handoff).</li>
+      </ol>
+
+      <div class="xref"><strong>Spec references:</strong> §6.5 Conditional Approvals · §8.4 Reject &amp; Reassign pattern.</div>
+    </div>
+  </div>
+</section>
+
+<!-- =========================== 6. AP REVIEW -->
+<section class="page" id="ap-review">
+  <div class="page-head"><span class="page-num">6</span><h2 class="page-title">AP Review</h2></div>
+  <div class="page-route">Route: <code>#ap-review</code></div>
+  <div class="page-grid">
+    <div class="preview-card">
+      <div class="preview-bar"><div class="preview-dots"><span></span><span></span><span></span></div><span class="url">app://ap-review</span><a class="open" href="2026-05-13-municipal-ap-invoice-mockup.html#ap-review" target="_blank">Open ↗</a></div>
+      <div class="preview-iframe-wrap"><iframe src="2026-05-13-municipal-ap-invoice-mockup.html#ap-review" loading="lazy"></iframe></div>
+      <div class="preview-print-note">Capture screenshot of <code>#ap-review</code> here when generating PDF.</div>
+      <div class="preview-caption">Stage 4 of 8 · final finance gate before processing</div>
+    </div>
+    <div class="detail">
+      <h3>What this page does</h3>
+      <p>Final finance gate before invoices are released for batching and ERP import. AP can edit any field, reject back to specific upstream reviewers (granular, not blanket), or approve to advance.</p>
+
+      <h3>Requirements</h3>
+      <ol class="req-list">
+        <li>Stage pill bar with AP Review active.</li>
+        <li>Hero action: <strong>Bulk Approve</strong>.</li>
+        <li>Table columns: Invoice #, Vendor, Department, <strong>Coded By</strong>, <strong>Cond. Approvals</strong> (shows who approved if applicable), Amount, Routed time, per-row Reject / Approve.</li>
+        <li>AP can <strong>edit any field</strong> (header and coding) at this stage — the Fields Editable By role config (Section 4a) governs who specifically. (Section 6.6)</li>
+        <li><strong>Granular reject:</strong> when rejecting, AP can target one or more specific upstream reviewers (e.g., reject back to one bad coder while leaving the other coder's work intact). (Section 6.6, §8.4)</li>
+        <li>Approval here advances the invoice to Ready for Processing.</li>
+      </ol>
+
+      <div class="xref"><strong>Spec references:</strong> §6.6 AP Review · §8.4 Reject &amp; Reassign · §4a Fields Editable By role.</div>
+    </div>
+  </div>
+</section>
+
+<!-- =========================== 7. READY FOR PROCESSING -->
+<section class="page" id="ready-for-processing">
+  <div class="page-head"><span class="page-num">7</span><h2 class="page-title">Ready for Processing</h2></div>
+  <div class="page-route">Route: <code>#ready-for-processing</code></div>
+  <div class="page-grid">
+    <div class="preview-card">
+      <div class="preview-bar"><div class="preview-dots"><span></span><span></span><span></span></div><span class="url">app://ready-for-processing</span><a class="open" href="2026-05-13-municipal-ap-invoice-mockup.html#ready-for-processing" target="_blank">Open ↗</a></div>
+      <div class="preview-iframe-wrap"><iframe src="2026-05-13-municipal-ap-invoice-mockup.html#ready-for-processing" loading="lazy"></iframe></div>
+      <div class="preview-print-note">Capture screenshot of <code>#ready-for-processing</code> here when generating PDF.</div>
+      <div class="preview-caption">Stage 5 of 8 · batch numbers applied here · CSV export to ERP</div>
+    </div>
+    <div class="detail">
+      <h3>What this page does</h3>
+      <p>AP-approved invoices waiting to be batched. The single place where batch numbers are applied (this is the only stage with Batch Assign enabled). AP exports a CSV against any active filter for import into the financial system.</p>
+
+      <h3>Requirements</h3>
+      <ol class="req-list">
+        <li>Hero actions: <strong>Apply Batch #</strong> and <strong>↓ Export CSV</strong>.</li>
+        <li>Stage pill bar with this stage active.</li>
+        <li>Selection banner: when invoices are selected, show count + sum total (e.g., "Selected: 3 invoices, $42,896.89").</li>
+        <li>Apply Batch # picker: free-form text input. Warn (not block) if the entered batch number has been used before; AP must confirm. (Section 6.7)</li>
+        <li>Applying a batch number to one or more invoices advances them to the <strong>Processed</strong> stage. (Section 4 lifecycle)</li>
+        <li>Export CSV uses the configured field list from Settings → Export Format. Active filter scopes the export. (Section 6.7)</li>
+        <li>Re-export of the same filter is safe — no status change is triggered by the export action; the export itself is captured in audit. (Section 6.7, §8.2)</li>
+        <li>Table columns: Invoice #, Vendor, Department, Approved By, Amount, Approved time. Checkbox column for selection.</li>
+        <li><strong>Batch Assign</strong> per-stage config is locked ON for this stage and unavailable elsewhere in v1. (Section 4a)</li>
+      </ol>
+
+      <div class="xref"><strong>Spec references:</strong> §6.7 Ready for Processing · §4a per-stage Batch Assign · §8.2 Audit Log entries for batch_applied / export.</div>
+    </div>
+  </div>
+</section>
+
+<!-- =========================== 8. PROCESSED -->
+<section class="page" id="processed">
+  <div class="page-head"><span class="page-num">8</span><h2 class="page-title">Processed</h2></div>
+  <div class="page-route">Route: <code>#processed</code></div>
+  <div class="page-grid">
+    <div class="preview-card">
+      <div class="preview-bar"><div class="preview-dots"><span></span><span></span><span></span></div><span class="url">app://processed</span><a class="open" href="2026-05-13-municipal-ap-invoice-mockup.html#processed" target="_blank">Open ↗</a></div>
+      <div class="preview-iframe-wrap"><iframe src="2026-05-13-municipal-ap-invoice-mockup.html#processed" loading="lazy"></iframe></div>
+      <div class="preview-print-note">Capture screenshot of <code>#processed</code> here when generating PDF.</div>
+      <div class="preview-caption">Stage 6 of 8 · invoice has been imported into the ERP · awaiting AP release to Treasurer</div>
+    </div>
+    <div class="detail">
+      <h3>What this page does</h3>
+      <p>Invoices that have been imported into the ERP. AP confirms successful import by approving (single or bulk), which releases them to Treasurer Review.</p>
+
+      <h3>Requirements</h3>
+      <ol class="req-list">
+        <li>Hero action: <strong>Approve Selected → Treasurer</strong>.</li>
+        <li>Stage pill bar with Processed active.</li>
+        <li>Success banner showing the most recent batch import confirmation (e.g., "Batch B-2026-0512-001 imported successfully into Microsoft Dynamics on May 12 at 4:18 PM").</li>
+        <li>Table columns: Invoice #, Vendor, Batch # (mono), Department, Amount, Imported time, per-row Approve action.</li>
+        <li>Approve action is the AP "check-in" confirming the ERP import was successful — advances to Treasurer Review. (Section 6.8)</li>
+      </ol>
+
+      <div class="xref"><strong>Spec references:</strong> §6.8 Processed · §4 lifecycle.</div>
+    </div>
+  </div>
+</section>
+
+<!-- =========================== 9. TREASURER REVIEW -->
+<section class="page" id="treasurer-review">
+  <div class="page-head"><span class="page-num">9</span><h2 class="page-title">Treasurer Review</h2></div>
+  <div class="page-route">Route: <code>#treasurer-review</code></div>
+  <div class="page-grid">
+    <div class="preview-card">
+      <div class="preview-bar"><div class="preview-dots"><span></span><span></span><span></span></div><span class="url">app://treasurer-review</span><a class="open" href="2026-05-13-municipal-ap-invoice-mockup.html#treasurer-review" target="_blank">Open ↗</a></div>
+      <div class="preview-iframe-wrap"><iframe src="2026-05-13-municipal-ap-invoice-mockup.html#treasurer-review" loading="lazy"></iframe></div>
+      <div class="preview-print-note">Capture screenshot of <code>#treasurer-review</code> here when generating PDF.</div>
+      <div class="preview-caption">Stage 7 of 8 · grouped by batch · per-row + bulk Verify · Approve / Close Batch</div>
+    </div>
+    <div class="detail">
+      <h3>What this page does</h3>
+      <p>Treasurer's spot-check stage. Invoices are grouped by <strong>batch</strong> here, not flat. The treasurer opens individual invoices, marks them Verified (single or bulk), and when satisfied, closes the batch — releasing all remaining invoices to Completed.</p>
+
+      <h3>Requirements</h3>
+      <ol class="req-list">
+        <li>Page is grouped: each batch is its own card with header (batch # mono, status pill, count + total, per-row actions).</li>
+        <li>Per-batch actions: <strong>Reject Invoice</strong>, <strong>Bulk Verify</strong>, <strong>Approve / Close Batch</strong>.</li>
+        <li>Per-row actions: <strong>Verify</strong> / <strong>Unverify</strong> toggle, <strong>Open</strong> (routes to Invoice screen).</li>
+        <li><strong>Verify is a marker, not a stage transition</strong> — not all invoices in a batch need to be verified; it's a spot-check. (Section 6.9)</li>
+        <li><strong>Reject:</strong> rejecter picks destination stage (default AP Review). The rejected invoice's batch number is wiped; AP is notified; other invoices in the batch are unaffected. (Section 6.9)</li>
+        <li><strong>Approve / Close Batch:</strong> moves all remaining invoices in the batch to Completed (which triggers SharePoint archive).</li>
+        <li>Verify Flag is configurable per-stage (Section 4a) and shipped ON here; can be enabled at other stages too if a client wants additional checkpoints.</li>
+        <li>Bulk Verify = checkbox column + top-level button on the batch table.</li>
+      </ol>
+
+      <div class="xref"><strong>Spec references:</strong> §6.9 Treasurer Review · §4a Verify Flag per-stage · §8.6 Bulk Actions.</div>
+    </div>
+  </div>
+</section>
+
+<!-- =========================== 10. COMPLETED -->
+<section class="page" id="completed">
+  <div class="page-head"><span class="page-num">10</span><h2 class="page-title">Completed</h2></div>
+  <div class="page-route">Route: <code>#completed</code></div>
+  <div class="page-grid">
+    <div class="preview-card">
+      <div class="preview-bar"><div class="preview-dots"><span></span><span></span><span></span></div><span class="url">app://completed</span><a class="open" href="2026-05-13-municipal-ap-invoice-mockup.html#completed" target="_blank">Open ↗</a></div>
+      <div class="preview-iframe-wrap"><iframe src="2026-05-13-municipal-ap-invoice-mockup.html#completed" loading="lazy"></iframe></div>
+      <div class="preview-print-note">Capture screenshot of <code>#completed</code> here when generating PDF.</div>
+      <div class="preview-caption">Stage 8 of 8 (terminal) · auto-archived to SharePoint · retry status visible</div>
+    </div>
+    <div class="detail">
+      <h3>What this page does</h3>
+      <p>Terminal queue. Invoices that have cleared treasurer review. Each completed invoice triggers the SharePoint archive automatically; the Archive column shows the result of that operation.</p>
+
+      <h3>Requirements</h3>
+      <ol class="req-list">
+        <li>Hero action: <strong>↓ Export</strong>.</li>
+        <li>Stage pill bar with Completed active.</li>
+        <li>Toolbar: search, period selector (Last 30 days / This fiscal year / All time).</li>
+        <li>Table columns: Invoice #, Vendor, Batch # (mono), Department, Amount, Completed time, <strong>Archive</strong> status pill, Open action.</li>
+        <li>Archive pill: green "Archived" on success, amber "Retry N/5" while retries are running, red Failed once retries are exhausted. (Section 6.10)</li>
+        <li>Retry runs in background with exponential backoff (1m, 5m, 30m, 1h, 6h). After 5 failed attempts, the invoice surfaces in <strong>Alerts</strong>.</li>
+        <li>Document Set name follows the configurable token pattern (e.g., <code>{Vendor}_{InvoiceNumber}_{InvoiceDate}</code>) and inherits the SharePoint library's retention label.</li>
+      </ol>
+
+      <div class="xref"><strong>Spec references:</strong> §6.10 Completed · §8.1 Document Management (archive failure handling).</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================ GROUP 2 -->
+<div class="group-divider">
+  <div class="label">Part 2</div>
+  <h2>Detail &amp; Entry Pages</h2>
+</div>
+
+<!-- =========================== 11. INVOICE SCREEN -->
+<section class="page" id="invoice">
+  <div class="page-head"><span class="page-num">11</span><h2 class="page-title">Invoice Screen (deep view)</h2></div>
+  <div class="page-route">Route: <code>#invoice</code> · Reached from row click on All Requests, Open ↗ buttons, or Treasurer Review row Open</div>
+  <div class="page-grid">
+    <div class="preview-card">
+      <div class="preview-bar"><div class="preview-dots"><span></span><span></span><span></span></div><span class="url">app://invoice/INV-2026-0345</span><a class="open" href="2026-05-13-municipal-ap-invoice-mockup.html#invoice" target="_blank">Open ↗</a></div>
+      <div class="preview-iframe-wrap"><iframe src="2026-05-13-municipal-ap-invoice-mockup.html#invoice" loading="lazy"></iframe></div>
+      <div class="preview-print-note">Capture screenshot of <code>#invoice</code> here when generating PDF.</div>
+      <div class="preview-caption">Two-col layout · invoice preview + right-pane tabs · workflow stepper · collapsible preview</div>
+    </div>
+    <div class="detail">
+      <h3>What this page does</h3>
+      <p>The full deep-view of a single invoice — used at every stage by the role acting on it. Hosts the invoice document, all header metadata, the coding table, attached files, the comment thread, and the per-invoice audit log, all in one screen.</p>
+
+      <h3>Requirements</h3>
+      <ol class="req-list">
+        <li>Hero header with stage category pill, invoice ID + vendor as the title, a one-line context (e.g., "Posted in batch X · Verified by Y · $1,130.00"), and three primary actions in the top-right: <strong>↑ Reassign</strong>, <strong>Reject</strong>, <strong>Approve</strong>.</li>
+        <li>Full-width <strong>8-step workflow stepper</strong> below the hero. Each stage is a numbered circle; completed stages are filled blue with a checkmark; current stage is filled blue with a soft ring; future stages are gray-outlined. Stepper labels are configurable per Section 4a status labels.</li>
+        <li><strong>Two-column split:</strong> invoice preview (left) + right-pane tabs.</li>
+        <li><strong>Invoice preview pane is collapsible</strong> — toggle in the pane header collapses to a ~44px vertical strip showing only the doc name. Click again to expand.</li>
+        <li><strong>Right-pane tabs (single row):</strong> <code>Header (default)</code> · <code>Coding</code> · <code>Files</code> · <code>Notes</code> · <code>Log</code>.</li>
+        <li><strong>Header tab:</strong> all header fields rendered in their configured Sections (Section 5a). Each field uses its configured Width (Full / 1/2 / 1/3 / 1/4). Editable per Fields Editable By role at the current stage. Section pills are numbered card-num badges (e.g., "1 · DETAILS").</li>
+        <li><strong>Coding tab:</strong> the invoice's coded lines inline using the same coding table component as the dedicated Coding screen. Same validation row at the bottom. Add Line button at top.</li>
+        <li><strong>Files tab:</strong> list of attached documents with name, size, uploader, and timestamp. Clicking a document <strong>swaps the left-pane preview</strong> to that document and updates the preview header label. (Section 8.1)</li>
+        <li><strong>Notes tab:</strong> per-invoice comment thread; date/time stamped; supports <code>@mentions</code> (in-app notification fired). Composer at the bottom with a textarea + Post button.</li>
+        <li><strong>Log tab:</strong> per-invoice audit timeline. Action-based events only (no field-edit logging). Each event line is "When · Who" + bold action + context. There is no global Audit Log screen — audit is always per-invoice. (Section 8.2)</li>
+        <li>If the invoice is marked <strong>Confidential</strong>, a small lock indicator appears on the title row; the entire screen returns 404 for users without the Confidential role flag. (Section 5b)</li>
+      </ol>
+
+      <div class="xref"><strong>Spec references:</strong> §8.1 Invoice screen layout · §5a Field-driven sections · §5b Confidential filtering · §8.2 Audit Log · §8.4 Reject &amp; Reassign actions.</div>
+    </div>
+  </div>
+</section>
+
+<!-- =========================== 12. CODING SCREEN -->
+<section class="page" id="coding">
+  <div class="page-head"><span class="page-num">12</span><h2 class="page-title">Coding Screen</h2></div>
+  <div class="page-route">Route: <code>#coding</code> · Reached from To Be Coded row click and the Open Coding ↗ links</div>
+  <div class="page-grid">
+    <div class="preview-card">
+      <div class="preview-bar"><div class="preview-dots"><span></span><span></span><span></span></div><span class="url">app://coding/INV-2026-0339</span><a class="open" href="2026-05-13-municipal-ap-invoice-mockup.html#coding" target="_blank">Open ↗</a></div>
+      <div class="preview-iframe-wrap"><iframe src="2026-05-13-municipal-ap-invoice-mockup.html#coding" loading="lazy"></iframe></div>
+      <div class="preview-print-note">Capture screenshot of <code>#coding</code> here when generating PDF.</div>
+      <div class="preview-caption">Same shell as Invoice screen with Coding as the default tab and a wider right pane (1fr / 1.4fr)</div>
+    </div>
+    <div class="detail">
+      <h3>What this page does</h3>
+      <p>Same shell as the Invoice screen, but with Coding as the default tab and a wider right pane. Designed for coders who land here from the To Be Coded queue and primarily need to fill out the coding table while glancing at the invoice.</p>
+
+      <h3>Requirements</h3>
+      <ol class="req-list">
+        <li>Two-column split with grid <code>1fr / 1.4fr</code> (invoice preview narrower than coding pane).</li>
+        <li>Right-pane tabs: <code>Coding (default)</code> · <code>Header</code> · <code>Files</code> · <code>Notes</code> · <code>Log</code> — same set as Invoice screen, different default.</li>
+        <li><strong>Coding table</strong> with one row per coded line. Columns: GL Account, Cost Center, Project (and any other configured Coding Line fields), Amount, Tax Code, computed Tax / Recoverable / Non-Rec. (visibility configurable). Footer row totals each numeric column. (Section 7.1)</li>
+        <li><strong>Validation row</strong> below the table: Σ Lines = Subtotal · Σ Tax = Header Tax · Σ Total = Grand Total. Green when matched; red with the variance when not.</li>
+        <li><strong>Sum-match enforcement</strong>: per Settings → Coding Table, the sum check matches against Subtotal (default), Grand Total, or is Disabled; on mismatch the action is Block (default) or Warn. (Section 7.4)</li>
+        <li><strong>Approval status</strong> chips below the table: avatar + name + Pending/Approved pill for each assignee. Multi-recipient stages require all to approve.</li>
+        <li><strong>GL filtering by department coding restrictions</strong>: the GL dropdown for a coder is filtered live to GLs matching their department's segment-based rule(s). Roles with the Bypass Coding Restrictions flag see all GLs. (Section 7.5)</li>
+        <li>Add Line button in the Coding tab header.</li>
+        <li>Same stepper, same invoice preview (collapsible), same hero actions as Invoice screen.</li>
+      </ol>
+
+      <div class="xref"><strong>Spec references:</strong> §7.1 Coding Table · §7.2 Tax Calculation · §7.4 Validation (sum-match) · §7.5 Coding Restrictions · §8.1 layout.</div>
+    </div>
+  </div>
+</section>
+
+<!-- =========================== 13. CREATE INVOICE -->
+<section class="page" id="create-invoice">
+  <div class="page-head"><span class="page-num">13</span><h2 class="page-title">Create Invoice (manual entry)</h2></div>
+  <div class="page-route">Route: <code>#create-invoice</code> · Sidebar: <strong>New</strong></div>
+  <div class="page-grid">
+    <div class="preview-card">
+      <div class="preview-bar"><div class="preview-dots"><span></span><span></span><span></span></div><span class="url">app://create-invoice</span><a class="open" href="2026-05-13-municipal-ap-invoice-mockup.html#create-invoice" target="_blank">Open ↗</a></div>
+      <div class="preview-iframe-wrap"><iframe src="2026-05-13-municipal-ap-invoice-mockup.html#create-invoice" loading="lazy"></iframe></div>
+      <div class="preview-print-note">Capture screenshot of <code>#create-invoice</code> here when generating PDF.</div>
+      <div class="preview-caption">Manual entry path · no OCR runs against attached files · same lifecycle from To Be Assigned</div>
+    </div>
+    <div class="detail">
+      <h3>What this page does</h3>
+      <p>For invoices that don't arrive through the AP mailbox (vendor walk-in, special handling, etc.). All header data is keyed in manually; OCR is intentionally not run against any attached files in this path. After submission the invoice enters the lifecycle at To Be Assigned.</p>
+
+      <h3>Requirements</h3>
+      <ol class="req-list">
+        <li>Hero header with stage label, full workflow stepper below (with stage 1 active).</li>
+        <li>Hero actions: <strong>Cancel</strong> (link), <strong>Save Draft</strong>, <strong>Submit</strong> (primary).</li>
+        <li>Form is split into numbered Section cards (1 · Vendor &amp; Header, 2 · Amounts, 3 · Attachments). Section composition comes from Settings → Fields → Header Sections.</li>
+        <li>Each field rendered in its configured Width and grouped by Section — admin manages all of this in Settings → Fields, not here. (Section 5a)</li>
+        <li>Required-field markers (<code>*</code>) are computed from each field's "Mandatory at stage" config — anything mandatory at To Be Assigned shows here.</li>
+        <li>Vendor field is a Lookup driven by the synced ERP vendor list.</li>
+        <li>Attachments dropzone: PDF, Word, JPG, PNG, TIFF; up to 10 per request, 50 MB per file. (Section 8.1)</li>
+        <li>"Need a different field?" link routes to <strong>Settings → Fields</strong> — admins manage field schema there, not from this form.</li>
+        <li>On Submit, the request lands in <code>To Be Assigned</code> with no OCR run.</li>
+        <li>The right-side activity card (Status / Files / Notes / Log) is visible but Files/Notes/Log are empty until after submission.</li>
+      </ol>
+
+      <div class="xref"><strong>Spec references:</strong> §6.2 Manual Create · §5a Field-driven form composition · §8.1 attachment limits.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================ GROUP 3 -->
+<div class="group-divider">
+  <div class="label">Part 3</div>
+  <h2>Email Subsystem</h2>
+</div>
+
+<!-- =========================== 14. EMAIL TEMPLATES -->
+<section class="page" id="email-templates">
+  <div class="page-head"><span class="page-num">14</span><h2 class="page-title">Email — Templates</h2></div>
+  <div class="page-route">Route: <code>#email</code> + Templates tab · Sidebar: <strong>Email</strong></div>
+  <div class="page-grid">
+    <div class="preview-card">
+      <div class="preview-bar"><div class="preview-dots"><span></span><span></span><span></span></div><span class="url">app://email#templates</span><a class="open" href="2026-05-13-municipal-ap-invoice-mockup.html#email" target="_blank">Open ↗</a></div>
+      <div class="preview-iframe-wrap"><iframe src="2026-05-13-municipal-ap-invoice-mockup.html#email" loading="lazy"></iframe></div>
+      <div class="preview-print-note">Capture screenshot of <code>#email</code> Templates tab here when generating PDF.</div>
+      <div class="preview-caption">Two-pane: template list + editor · token chips · WYSIWYG body editor</div>
+    </div>
+    <div class="detail">
+      <h3>What this page does</h3>
+      <p>Library of named, reusable HTML templates. Each template has a name, subject, and body; tokens are interpolated at send time. Templates are bound to events on the Triggers tab.</p>
+
+      <h3>Requirements</h3>
+      <ol class="req-list">
+        <li>Two-pane layout: template list (left rail), editor (right card).</li>
+        <li>Left rail: <strong>+ New Template</strong> button at top, then list of templates with name + one-line description; selected template highlighted.</li>
+        <li>Editor: name field, subject field, body (WYSIWYG), token-chip palette above the inputs.</li>
+        <li>Editor toolbar: <strong>Send test</strong> (sends to the current admin), <strong>Delete</strong>, <strong>Save</strong>.</li>
+        <li><strong>Token chips</strong> insert at the cursor position in subject or body when clicked. Token list (Section 8.3): <code>{{InvoiceNumber}}, {{Vendor}}, {{InvoiceDate}}, {{DueDate}}, {{Amount}}, {{Status}}, {{Stage}}, {{BatchNumber}}, {{Assignee}}, {{Approver}}, {{Rejecter}}, {{RejectReason}}, {{InvoiceURL}}, {{Department}}, {{Municipality}}, {{AppName}}</code>.</li>
+        <li>Body is automatically wrapped by the global header and footer (set on the Settings tab) at send time.</li>
+        <li>WYSIWYG editor must support: bold/italic/underline/strikethrough, font + size selectors, text + highlight color, alignment, lists, indent, link, image, clear formatting.</li>
+        <li>Tokens that resolve to nothing at send time render as empty (no error).</li>
+      </ol>
+
+      <div class="xref"><strong>Spec references:</strong> §8.3 Notifications &amp; Email — Templates section.</div>
+    </div>
+  </div>
+</section>
+
+<!-- =========================== 15. EMAIL TRIGGERS -->
+<section class="page" id="email-triggers">
+  <div class="page-head"><span class="page-num">15</span><h2 class="page-title">Email — Triggers</h2></div>
+  <div class="page-route">Route: <code>#email</code> + Triggers tab</div>
+  <div class="page-grid">
+    <div class="preview-card">
+      <div class="preview-bar"><div class="preview-dots"><span></span><span></span><span></span></div><span class="url">app://email#triggers</span><a class="open" href="2026-05-13-municipal-ap-invoice-mockup.html#email" target="_blank">Open ↗</a></div>
+      <div class="preview-iframe-wrap"><iframe src="2026-05-13-municipal-ap-invoice-mockup.html#email" loading="lazy"></iframe></div>
+      <div class="preview-print-note">Capture screenshot of <code>#email</code> Triggers tab here when generating PDF.</div>
+      <div class="preview-caption">Event × Stage → Template + Recipients + CC · four recipient types</div>
+    </div>
+    <div class="detail">
+      <h3>What this page does</h3>
+      <p>Decides which template fires when. Each row maps a system event firing at a specific stage to a single template plus a list of recipients (and optional CC list).</p>
+
+      <h3>Requirements</h3>
+      <ol class="req-list">
+        <li>Table columns: Event, Stage, Template, Recipients, CC, Status (Active / Disabled), Edit action.</li>
+        <li><strong>Events</strong> in v1: Submission, Approval, Rejection, Reassignment, Conditional Routing, Treasurer Routing, Batch Applied, Archive Failed.</li>
+        <li><strong>Stage</strong> can be a specific stage or "(any)" — the same event can fire different templates depending on which stage it happens at (e.g., Approval @ To Be Coded vs. Approval @ AP Review).</li>
+        <li><strong>Recipients</strong> are picked from a four-tab picker: <span class="pill violet">Dynamic role</span>, <span class="pill green">Group</span>, <span class="pill">Person</span>, <span class="pill amber">Email</span>. Each chip shows its type via color.</li>
+        <li><strong>Dynamic role</strong> recipients resolve at send time (e.g., "the Approver", "the Rejecter", "the AP Supervisor for the dept"); if a slot resolves to nobody, that slot is silently skipped — others on the trigger still get the email.</li>
+        <li>Triggers can be <strong>enabled or disabled</strong> without deleting them.</li>
+        <li>+ Add Trigger button creates a new row.</li>
+        <li>The Recipient picker preview at the bottom of the page is illustrative, showing the four chip types side-by-side.</li>
+      </ol>
+
+      <div class="xref"><strong>Spec references:</strong> §8.3 Notifications &amp; Email — Triggers + Recipients sections.</div>
+    </div>
+  </div>
+</section>
+
+<!-- =========================== 16. EMAIL SETTINGS -->
+<section class="page" id="email-settings">
+  <div class="page-head"><span class="page-num">16</span><h2 class="page-title">Email — Settings</h2></div>
+  <div class="page-route">Route: <code>#email</code> + Settings tab</div>
+  <div class="page-grid">
+    <div class="preview-card">
+      <div class="preview-bar"><div class="preview-dots"><span></span><span></span><span></span></div><span class="url">app://email#settings</span><a class="open" href="2026-05-13-municipal-ap-invoice-mockup.html#email" target="_blank">Open ↗</a></div>
+      <div class="preview-iframe-wrap"><iframe src="2026-05-13-municipal-ap-invoice-mockup.html#email" loading="lazy"></iframe></div>
+      <div class="preview-print-note">Capture screenshot of <code>#email</code> Settings tab here when generating PDF.</div>
+      <div class="preview-caption">App-wide sender · global HTML header + footer · SMTP relay + delivery</div>
+    </div>
+    <div class="detail">
+      <h3>What this page does</h3>
+      <p>App-wide email configuration. Single sender for all outgoing email; global HTML header and footer that wrap every template body; SMTP delivery setup.</p>
+
+      <h3>Requirements</h3>
+      <ol class="req-list">
+        <li><strong>Sender card:</strong> From email address, From display name, Reply-To address. Single sender app-wide — no per-template override in v1. (Section 8.3)</li>
+        <li><strong>Global Header (HTML):</strong> WYSIWYG editor for the HTML wrapper that prepends every email body. Common use: logo, banner, municipal branding.</li>
+        <li><strong>Global Footer (HTML):</strong> WYSIWYG editor for the HTML wrapper that appends every email body. Common use: contact info, automated-message disclaimer, address.</li>
+        <li><strong>Delivery card:</strong> SMTP relay selector (Microsoft 365 / SendGrid / Amazon SES / Custom), Daily send cap, Retry attempts on send failure, Bounce notification address.</li>
+      </ol>
+
+      <div class="xref"><strong>Spec references:</strong> §8.3 Notifications &amp; Email — Settings (app-wide).</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================ GROUP 4 -->
+<div class="group-divider">
+  <div class="label">Part 4</div>
+  <h2>Admin / Configuration</h2>
+</div>
+
+<!-- =========================== 17. SETTINGS → WORKFLOW -->
+<section class="page" id="settings-workflow">
+  <div class="page-head"><span class="page-num">17</span><h2 class="page-title">Settings — Workflow</h2></div>
+  <div class="page-route">Route: <code>#settings</code> + Workflow tab · Sidebar: <strong>Settings</strong></div>
+  <div class="page-grid">
+    <div class="preview-card">
+      <div class="preview-bar"><div class="preview-dots"><span></span><span></span><span></span></div><span class="url">app://settings#workflow</span><a class="open" href="2026-05-13-municipal-ap-invoice-mockup.html#settings" target="_blank">Open ↗</a></div>
+      <div class="preview-iframe-wrap"><iframe src="2026-05-13-municipal-ap-invoice-mockup.html#settings" loading="lazy"></iframe></div>
+      <div class="preview-print-note">Capture screenshot of <code>#settings</code> Workflow tab here when generating PDF.</div>
+      <div class="preview-caption">Per-stage configuration matrix · required stages locked · assignment target type</div>
+    </div>
+    <div class="detail">
+      <h3>What this page does</h3>
+      <p>Configures every workflow stage's behavior for this client.</p>
+
+      <h3>Requirements</h3>
+      <ol class="req-list">
+        <li><strong>Per-stage configuration matrix</strong> as a table. Columns: Stage (numbered + name), Active toggle, Label (editable text), Bulk Assign, Batch Assign, Verify Flag, Reject, Reassign, Fields Editable By (role multi-select).</li>
+        <li><strong>Required stages</strong> (To Be Assigned, Ready for Processing, Completed) are visually locked: their Active checkbox is disabled, row tinted, and a 🔒 indicator appears next to the stage name. Other stages can be turned off; invoices skip past them.</li>
+        <li><strong>Batch Assign</strong> column is disabled for every stage except Ready for Processing in v1.</li>
+        <li><strong>Verify Flag:</strong> on a stage with this enabled, reviewers can mark individual invoices as Verified (single or bulk). Default ON for Treasurer Review only; admin can enable elsewhere.</li>
+        <li><strong>Fields Editable By:</strong> per-stage, per-role list of roles allowed to edit invoice fields while in this stage. (Section 4a)</li>
+        <li>Below the matrix: <strong>Assignment</strong> card with a single setting — assignment target type (User and/or Department / User only / Department only).</li>
+        <li>Help text under the matrix explains each column's behavior in one line each.</li>
+      </ol>
+
+      <div class="xref"><strong>Spec references:</strong> §4 lifecycle (required-stage rule) · §4a Per-Stage Configuration table.</div>
+    </div>
+  </div>
+</section>
+
+<!-- =========================== 18. SETTINGS → FIELDS -->
+<section class="page" id="settings-fields">
+  <div class="page-head"><span class="page-num">18</span><h2 class="page-title">Settings — Fields</h2></div>
+  <div class="page-route">Route: <code>#settings</code> + Fields tab</div>
+  <div class="page-grid">
+    <div class="preview-card">
+      <div class="preview-bar"><div class="preview-dots"><span></span><span></span><span></span></div><span class="url">app://settings#fields</span><a class="open" href="2026-05-13-municipal-ap-invoice-mockup.html#settings" target="_blank">Open ↗</a></div>
+      <div class="preview-iframe-wrap"><iframe src="2026-05-13-municipal-ap-invoice-mockup.html#settings" loading="lazy"></iframe></div>
+      <div class="preview-print-note">Capture screenshot of <code>#settings</code> Fields tab here when generating PDF.</div>
+      <div class="preview-caption">Header Sections manager + full Fields config matrix + Add Field picker preview</div>
+    </div>
+    <div class="detail">
+      <h3>What this page does</h3>
+      <p>The schema editor. Defines every header field, every coded-line field, and the named header sections that group header fields. Drives the New Request form, the Invoice screen Header tab, the coding table, the All Requests columns, the CSV export, and approval rule conditions.</p>
+
+      <h3>Requirements</h3>
+      <ol class="req-list">
+        <li><strong>Header Sections manager</strong> at the top: list of named sections in order (Details, Amounts, Workflow, Custom by default), each row is the section name (editable) plus field count plus reorder/delete actions. <strong>+ Add Section</strong> button. Removing a section reassigns its fields to the first remaining section.</li>
+        <li><strong>Fields config matrix.</strong> Columns: Field Label, Scope (Header / Coding Line pill), Section (dropdown for Header fields, n/a for Coding Line), Type, Width (Header only), <strong>Options</strong>, Mandatory at stage (clickable pills per stage), All Reqs col toggle, Export toggle, Edit / Delete actions.</li>
+        <li><strong>System fields are locked from removal</strong> (lock icon, gray row tint) but every other property is still editable. Custom fields can be deleted.</li>
+        <li><strong>Mandatory pill toggles:</strong> click any pill to toggle that stage as required for this field. Required-at-one carries forward — once a field is satisfied, it can't become unfilled later.</li>
+        <li><strong>Options column</strong> behavior:
+          <ul>
+            <li>Choice (dropdown) → "Edit list (N)" button opens an editor for the option strings</li>
+            <li>Multi-select → same editor</li>
+            <li>Lookup (ERP X) → "N from ERP sync" (read-only, count from sync)</li>
+            <li>Tax Code → link to the Tax Codes settings tab (single source of truth)</li>
+            <li>Other types → "—"</li>
+          </ul>
+        </li>
+        <li><strong>Field types supported:</strong> Single Line Text, Multiple Lines of Text, Rich Text, Number, Currency, Date, Choice, Multi-select, Yes/No, Lookup (Vendors / GLs / Cost Centers / Projects / Funds / Tax Codes), User Picker, Group Picker, File Attachment.</li>
+        <li><strong>Add Field picker preview</strong> at the bottom shows the modal that <strong>+ Add Field</strong> opens — demonstrates all the inputs (Label, Scope, Section, Type, Width, Options textarea, Mandatory-at-stage pills, All Requests col toggle, Export toggle).</li>
+        <li>The shipped <strong>Confidential</strong> field appears as a deletable row marked "🔐 access-controlled" — pairs with the Confidential role permission to drive row-level access control. (Section 5b)</li>
+      </ol>
+
+      <div class="xref"><strong>Spec references:</strong> §5a Field Management &amp; Header Sections (full table + propagation matrix).</div>
+    </div>
+  </div>
+</section>
+
+<!-- =========================== 19. SETTINGS → CODING RESTRICTIONS -->
+<section class="page" id="settings-coding-restrictions">
+  <div class="page-head"><span class="page-num">19</span><h2 class="page-title">Settings — Coding Restrictions</h2></div>
+  <div class="page-route">Route: <code>#settings</code> + Coding Restrictions tab</div>
+  <div class="page-grid">
+    <div class="preview-card">
+      <div class="preview-bar"><div class="preview-dots"><span></span><span></span><span></span></div><span class="url">app://settings#coding-restrictions</span><a class="open" href="2026-05-13-municipal-ap-invoice-mockup.html#settings" target="_blank">Open ↗</a></div>
+      <div class="preview-iframe-wrap"><iframe src="2026-05-13-municipal-ap-invoice-mockup.html#settings" loading="lazy"></iframe></div>
+      <div class="preview-print-note">Capture screenshot of <code>#settings</code> Coding Restrictions tab here when generating PDF.</div>
+      <div class="preview-caption">GL segment format · per-department GL access rules · cross-department policy</div>
+    </div>
+    <div class="detail">
+      <h3>What this page does</h3>
+      <p>Defines which GLs each department may code against. Coders see a filtered GL dropdown; submit-time validation re-checks. Roles with Bypass Coding Restrictions ignore these rules entirely.</p>
+
+      <h3>Requirements</h3>
+      <ol class="req-list">
+        <li><strong>GL Segment Format</strong> card: segment delimiter (default <code>-</code>; alternatives <code>.</code>, <code>_</code>, <code>/</code>, fixed-width), number of segments (e.g., 4), optional segment labels (e.g., "Fund - Function - Department - Object"), example GL preview.</li>
+        <li><strong>Department Coding Rules</strong> table: per row — Department, Rule (e.g., "Segment 3 (Department) = <code>3300</code>"), Matches (human-readable example), Status (Active / Disabled), Edit / Delete.</li>
+        <li>Match operators supported: <strong>Equals</strong>, <strong>Starts with</strong>, <strong>In list</strong>. Multiple rules per department combine with <strong>OR</strong>. (Section 7.5)</li>
+        <li>+ Add Rule button.</li>
+        <li><strong>Cross-Department Invoice Handling</strong> card: radio between <strong>Strict</strong> (coders only enter lines for their own dept; AP redistributes) and <strong>Permissive</strong> (default — coders enter for any dept they belong to; bypass roles code anywhere).</li>
+        <li><strong>Scope (v1):</strong> restrictions apply to GL Account only in v1. Cost Center / Project / Fund are roadmapped.</li>
+        <li>The actual filter behavior on the Coding screen is described in §7.5 — implement: live filter the GL dropdown; reject submission if any line's GL doesn't satisfy the coder's department rules; bypass-role users see all GLs.</li>
+      </ol>
+
+      <div class="xref"><strong>Spec references:</strong> §7.5 Coding Restrictions (Department-to-GL Access).</div>
+    </div>
+  </div>
+</section>
+
+<!-- =========================== 20. SETTINGS → TAX CODES -->
+<section class="page" id="settings-tax">
+  <div class="page-head"><span class="page-num">20</span><h2 class="page-title">Settings — Tax Codes</h2></div>
+  <div class="page-route">Route: <code>#settings</code> + Tax Codes tab</div>
+  <div class="page-grid">
+    <div class="preview-card">
+      <div class="preview-bar"><div class="preview-dots"><span></span><span></span><span></span></div><span class="url">app://settings#tax</span><a class="open" href="2026-05-13-municipal-ap-invoice-mockup.html#settings" target="_blank">Open ↗</a></div>
+      <div class="preview-iframe-wrap"><iframe src="2026-05-13-municipal-ap-invoice-mockup.html#settings" loading="lazy"></iframe></div>
+      <div class="preview-print-note">Capture screenshot of <code>#settings</code> Tax Codes tab here when generating PDF.</div>
+      <div class="preview-caption">Tax codes table · code, label, rate %, recoverable %, GL mappings</div>
+    </div>
+    <div class="detail">
+      <h3>What this page does</h3>
+      <p>Defines the tax codes coders can pick on each coded line. Drives the per-line tax math: <code>tax = amount × rate</code>, <code>recoverable = tax × recoverable_pct</code>, <code>non_recoverable = tax − recoverable</code>.</p>
+
+      <h3>Requirements</h3>
+      <ol class="req-list">
+        <li>Table columns: Code (mono), Label, Rate %, Recoverable %, Recoverable GL, AP Control GL, Edit action.</li>
+        <li>+ Add Tax Code button.</li>
+        <li><strong>Sourcing:</strong> tax codes themselves are synced from the ERP if exposed; otherwise maintained locally. Rates and recoverable %s are always maintained here (most ERPs don't expose recoverable %s). Calculation logic is fixed in code; only the inputs are configurable. (Section 7.3)</li>
+        <li>For municipalities: recoverable % comes from CRA Public Service Body rebate rules and the muni's own accounting policy. Multiple codes for the same statutory rate are common (e.g., HST-PSB-General vs. HST-Commercial-100).</li>
+      </ol>
+
+      <div class="xref"><strong>Spec references:</strong> §7.2 Tax Calculation · §7.3 Tax Code Configuration.</div>
+    </div>
+  </div>
+</section>
+
+<!-- =========================== 21. SETTINGS → APPROVAL RULES -->
+<section class="page" id="settings-rules">
+  <div class="page-head"><span class="page-num">21</span><h2 class="page-title">Settings — Approval Rules</h2></div>
+  <div class="page-route">Route: <code>#settings</code> + Approval Rules tab</div>
+  <div class="page-grid">
+    <div class="preview-card">
+      <div class="preview-bar"><div class="preview-dots"><span></span><span></span><span></span></div><span class="url">app://settings#rules</span><a class="open" href="2026-05-13-municipal-ap-invoice-mockup.html#settings" target="_blank">Open ↗</a></div>
+      <div class="preview-iframe-wrap"><iframe src="2026-05-13-municipal-ap-invoice-mockup.html#settings" loading="lazy"></iframe></div>
+      <div class="preview-print-note">Capture screenshot of <code>#settings</code> Approval Rules tab here when generating PDF.</div>
+      <div class="preview-caption">Rules engine for the Conditional Approvals stage</div>
+    </div>
+    <div class="detail">
+      <h3>What this page does</h3>
+      <p>Configures the rules-based routing for the Conditional Approvals stage. Each rule has conditions (combinable with AND/OR) and actions (route to user / role).</p>
+
+      <h3>Requirements</h3>
+      <ol class="req-list">
+        <li>List of rules as cards (not table — each card carries its full IF/THEN expression). Per card: rule name, plain-English condition string, plain-English action string, Status (Active / Disabled), Edit action.</li>
+        <li>+ Add Rule button.</li>
+        <li>Conditions support: amount thresholds, departments involved, vendor, GL, cost center, fund, project, and any other field — combinable with AND/OR. (Section 6.5)</li>
+        <li>Actions: route to one or more named users, or role-based ("department head of [dept]").</li>
+        <li>Multiple required approvers per rule: configurable Parallel (default) or Sequential.</li>
+        <li>Auto-skip behavior: if no rules match an invoice when it enters Conditional Approvals, the stage is auto-skipped to AP Review. (Section 6.5)</li>
+        <li>Multiple matching rules add together (deduplicated).</li>
+      </ol>
+
+      <div class="xref"><strong>Spec references:</strong> §6.5 Conditional Approvals (Rules-based Routing).</div>
+    </div>
+  </div>
+</section>
+
+<!-- =========================== 22. SETTINGS → RBAC -->
+<section class="page" id="settings-rbac">
+  <div class="page-head"><span class="page-num">22</span><h2 class="page-title">Settings — Roles &amp; Permissions</h2></div>
+  <div class="page-route">Route: <code>#settings</code> + Roles &amp; Permissions tab</div>
+  <div class="page-grid">
+    <div class="preview-card">
+      <div class="preview-bar"><div class="preview-dots"><span></span><span></span><span></span></div><span class="url">app://settings#rbac</span><a class="open" href="2026-05-13-municipal-ap-invoice-mockup.html#settings" target="_blank">Open ↗</a></div>
+      <div class="preview-iframe-wrap"><iframe src="2026-05-13-municipal-ap-invoice-mockup.html#settings" loading="lazy"></iframe></div>
+      <div class="preview-print-note">Capture screenshot of <code>#settings</code> RBAC tab here when generating PDF.</div>
+      <div class="preview-caption">Configurable roles · action × object × scope · Confidential + Bypass Coding flags</div>
+    </div>
+    <div class="detail">
+      <h3>What this page does</h3>
+      <p>Defines roles and what they can do. Granular permissions matrix plus two role-level flags (Confidential and Bypass Coding) that govern row-level access and coding-restriction bypass.</p>
+
+      <h3>Requirements</h3>
+      <ol class="req-list">
+        <li>Roles table: Role name, Members count, Can edit, Can approve, Can delete, Can configure summary cells, plus two checkbox columns: <span class="pill red">🔐 Confidential</span> and <span class="pill">⚙ Bypass Coding</span>.</li>
+        <li>+ Add Role button. Default roles shipped: Admin, AP Clerk, AP Supervisor, Department Reviewer, Conditional Approver, Treasurer.</li>
+        <li><strong>Permission model:</strong> each role is a collection of permissions; each permission is a tuple (action × object × scope) plus optional stage scoping. Action: view, edit, assign, code, approve, reject, reassign, post, archive, export, delete, configure. Object: invoice, document, batch, settings, audit log, role. Scope: own / department / all. (Section 5)</li>
+        <li><strong>🔐 Confidential</strong> flag: when checked, members of this role can see Confidential invoices. Roles without this flag get Confidential invoices filtered out of queues, All Requests, search, exports, notification recipient slots; direct URLs return 404. (Section 5b)</li>
+        <li><strong>⚙ Bypass Coding Restrictions</strong> flag: when checked, members can code lines to any GL regardless of department coding rules. Used for AP staff handling cross-department invoices and admins. (Section 7.5)</li>
+        <li>Inline help under the table explains both flags.</li>
+        <li>Edit on a role opens a fuller permissions editor (not yet drawn in v1 mockup; data model spec is in Section 5).</li>
+      </ol>
+
+      <div class="xref"><strong>Spec references:</strong> §5 User Roles &amp; Permissions · §5b Confidential · §7.5 Bypass Coding Restrictions.</div>
+    </div>
+  </div>
+</section>
+
+<!-- =========================== 23. SETTINGS → OTHER TABS -->
+<section class="page" id="settings-other">
+  <div class="page-head"><span class="page-num">23</span><h2 class="page-title">Settings — Other Tabs</h2></div>
+  <div class="page-route">Route: <code>#settings</code> + Duplicate Detection / Coding Table / Export Format / Archive / OCR / ERP / Audit Retention tabs</div>
+  <div class="page-grid">
+    <div class="preview-card">
+      <div class="preview-bar"><div class="preview-dots"><span></span><span></span><span></span></div><span class="url">app://settings#duplicate</span><a class="open" href="2026-05-13-municipal-ap-invoice-mockup.html#settings" target="_blank">Open ↗</a></div>
+      <div class="preview-iframe-wrap"><iframe src="2026-05-13-municipal-ap-invoice-mockup.html#settings" loading="lazy"></iframe></div>
+      <div class="preview-print-note">Capture screenshots of each remaining Settings tab when generating PDF.</div>
+      <div class="preview-caption">Remaining Settings tabs grouped — most are simple form cards</div>
+    </div>
+    <div class="detail">
+      <h3>What these tabs do</h3>
+      <p>Remaining Settings tabs that are simple form cards. Grouped here to keep the handoff compact; each is independently navigable from the Settings tab strip.</p>
+
+      <h3>Per-tab requirements</h3>
+      <ol class="req-list">
+        <li><strong>Duplicate Detection</strong> — Match rule (checkboxes for invoice number, vendor, amount, invoice date, PO number) + Action on match radio (Warn / <em>Flag</em> default / Block). Block diverts the inbound email to a "Blocked Duplicates" admin view rather than silently dropping. (Section 6.3)</li>
+        <li><strong>Coding Table</strong> — Visible columns table (one row per Coding Line field with Show/Required/Label) + Computed columns visibility radios (Show all / <em>Tax only</em> default / Hide all) + <strong>Sum-Match Validation</strong> card (Match against: Subtotal default / Grand Total / Disabled — On mismatch: Block default / Warn). (Sections 7.1, 7.4)</li>
+        <li><strong>Export Format</strong> — CSV field list, ordered. Per row: # (order), Field, Source (Header / ERP / Computed / Setting / Workflow / Local), CSV Column Name (editable), Include checkbox. Drawn from any field with "Available for CSV export" enabled in Settings → Fields. (Section 6.7)</li>
+        <li><strong>Archive</strong> — Designated SharePoint library URL, Document Set name pattern (token-based, e.g., <code>{Vendor}_{InvoiceNumber}_{InvoiceDate}</code>), Retry attempts on failure, Backoff schedule (read-only display). (Section 6.10)</li>
+        <li><strong>OCR</strong> — OCR field extraction table (one row per field with Extract / Pre-populate header toggles) + Vendor confidence threshold for auto-flagging. (Section 6.1)</li>
+        <li><strong>ERP Integration</strong> — Connection card (ERP system selector, Hosting, Sync mode, Last sync timestamp) + Synced reference data table (Vendors, GL Accounts, Cost Centers, Projects, Funds, Tax Codes — each with record count, last sync, status pill). (Section 9)</li>
+        <li><strong>Audit Retention</strong> — Retain audit entries for (3 / 7 default / 10 / Forever) + current audit log size. (Section 8.2)</li>
+      </ol>
+
+      <div class="xref"><strong>Spec references:</strong> §6.3 duplicate · §7.1/7.4 coding table + sum-match · §6.7 export · §6.10 archive · §6.1 OCR · §9 ERP · §8.2 audit retention.</div>
+    </div>
+  </div>
+</section>
+
+<!-- =========================== 24. TRASH -->
+<section class="page" id="trash">
+  <div class="page-head"><span class="page-num">24</span><h2 class="page-title">Trash (Deleted Records)</h2></div>
+  <div class="page-route">Route: <code>#deleted-records</code> · Sidebar: <strong>Trash</strong></div>
+  <div class="page-grid">
+    <div class="preview-card">
+      <div class="preview-bar"><div class="preview-dots"><span></span><span></span><span></span></div><span class="url">app://deleted-records</span><a class="open" href="2026-05-13-municipal-ap-invoice-mockup.html#deleted-records" target="_blank">Open ↗</a></div>
+      <div class="preview-iframe-wrap"><iframe src="2026-05-13-municipal-ap-invoice-mockup.html#deleted-records" loading="lazy"></iframe></div>
+      <div class="preview-print-note">Capture screenshot of <code>#deleted-records</code> here when generating PDF.</div>
+      <div class="preview-caption">Soft-deleted invoices · admin-only · recoverable</div>
+    </div>
+    <div class="detail">
+      <h3>What this page does</h3>
+      <p>Admin-only view of soft-deleted invoices. Records are retained for audit and recoverable.</p>
+
+      <h3>Requirements</h3>
+      <ol class="req-list">
+        <li>Table columns: Invoice #, Vendor, Amount, Deleted by, Deleted at, Reason, View / Restore actions.</li>
+        <li>Soft-delete is the only delete behavior — records are hidden from default views but retained in storage. (Section 12)</li>
+        <li>Delete action requires a reason (free text); the action is captured in the audit log on the original invoice.</li>
+        <li>Restore returns the invoice to its previous status with full history intact.</li>
+        <li>Page is admin-only; non-admins don't see this in the sidebar.</li>
+      </ol>
+
+      <div class="xref"><strong>Spec references:</strong> §12 Admin Operations (Soft-delete invoice).</div>
+    </div>
+  </div>
+</section>
+
+<!-- =========================== 25. ALERTS -->
+<section class="page" id="alerts">
+  <div class="page-head"><span class="page-num">25</span><h2 class="page-title">Alerts (Archive Failures)</h2></div>
+  <div class="page-route">Route: <code>#archive-failures</code> · Sidebar: <strong>Alerts</strong> (with red badge)</div>
+  <div class="page-grid">
+    <div class="preview-card">
+      <div class="preview-bar"><div class="preview-dots"><span></span><span></span><span></span></div><span class="url">app://archive-failures</span><a class="open" href="2026-05-13-municipal-ap-invoice-mockup.html#archive-failures" target="_blank">Open ↗</a></div>
+      <div class="preview-iframe-wrap"><iframe src="2026-05-13-municipal-ap-invoice-mockup.html#archive-failures" loading="lazy"></iframe></div>
+      <div class="preview-print-note">Capture screenshot of <code>#archive-failures</code> here when generating PDF.</div>
+      <div class="preview-caption">Completed invoices whose SharePoint archive failed after retries · admin retry</div>
+    </div>
+    <div class="detail">
+      <h3>What this page does</h3>
+      <p>Manual-action queue for invoices whose SharePoint archive has exhausted all retry attempts. Admins retry from here after resolving the underlying issue (typically library permissions or API timeouts).</p>
+
+      <h3>Requirements</h3>
+      <ol class="req-list">
+        <li>Hero badge shows count of failures; sidebar Alerts item also shows the same red badge.</li>
+        <li>Hero action: <strong>Retry All</strong>.</li>
+        <li>Error banner explains that background retries are exhausted and manual action is required.</li>
+        <li>Table columns: Invoice #, Vendor, Batch # (mono), Completed at, Last error (verbose, e.g., "403 Forbidden · library permission denied"), Attempts (e.g., "5/5"), Retry button.</li>
+        <li>Retry triggers a fresh archive attempt; on success the invoice's Archive pill on Completed flips to green and the row is removed from this view.</li>
+        <li>Page is admin-only; non-admins don't see this in the sidebar.</li>
+      </ol>
+
+      <div class="xref"><strong>Spec references:</strong> §6.10 Completed (archive failure handling) · §12 Admin Operations.</div>
+    </div>
+  </div>
+</section>
+
+</div><!-- /container -->
+
+<footer class="handoff-footer">
+  <p>AuroraAP Developer Handoff · Generated from <a href="2026-05-13-municipal-ap-invoice-design.md">Functional Design</a> + <a href="2026-05-13-municipal-ap-invoice-mockup.html">Interactive Mockup</a> · 2026-05-13</p>
+  <p style="margin-top:8px;">Live iframe previews are used for interactive review. For a printed/PDF distribution, drop PNG screenshots into <code>screenshots/&lt;route&gt;.png</code> (e.g., <code>screenshots/home.png</code>) and print to PDF — the static images automatically take over from the iframes when printing. Routes without a screenshot show a placeholder note.</p>
+</footer>
+
+<script>
+  // Auto-inject image fallback for each preview-card.
+  // Browser: iframe shows. Print: image shows (or 'screenshot pending' note if PNG is missing).
+  document.querySelectorAll('.preview-iframe-wrap').forEach(wrap => {
+    const iframe = wrap.querySelector('iframe');
+    if (!iframe) return;
+    const src = iframe.getAttribute('src') || '';
+    const route = src.includes('#') ? src.split('#').pop() : 'home';
+    const imgWrap = document.createElement('div');
+    imgWrap.className = 'preview-image-wrap';
+    imgWrap.innerHTML =
+      '<img src="screenshots/' + route + '.png" alt="Screenshot of ' + route + ' screen" ' +
+      'onerror="this.parentElement.classList.add(\'missing\')">' +
+      '<div class="missing-note">Screenshot pending — capture <code>#' + route + '</code> from the mockup, save as <code>screenshots/' + route + '.png</code></div>';
+    wrap.parentElement.insertBefore(imgWrap, wrap.nextSibling);
+  });
+</script>
+
+</body>
+</html>

@@ -1,4 +1,4 @@
-import { CollectionConfig } from 'payload'
+import type { CollectionConfig } from 'payload'
 
 export const Municilacities: CollectionConfig = {
    slug: 'municilacities',
@@ -12,13 +12,12 @@ export const Municilacities: CollectionConfig = {
          type: 'text',
       },
       {
-         name: 'image',
-         type: 'upload',
-         relationTo: 'media',
-      },
-      {
-         name: 'color',
+         name: 'primaryColor',
          type: 'text',
       },
+      {
+         name: 'secondaryColor',
+         type: 'text',
+      }
    ],
 }
