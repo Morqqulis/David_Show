@@ -60,6 +60,5 @@ export async function closeBatch(batchId: string | number) {
     id: batchId as never,
     data: { closedAt: new Date().toISOString(), closedBy: actorId as never } as never,
   })
-  revalidatePath('/queues/treasurer_review')
-  revalidatePath('/queues/completed')
+  revalidatePath('/requests')
 }

@@ -1,13 +1,27 @@
-import Link from 'next/link'
+'use client'
+
+import { usePathname, useRouter } from 'next/navigation'
 import { Card, CardContent } from '@/components/ui/card'
 import { StageBadge } from '../stage-badge'
 import { STAGE_ORDER, type StageId } from '@/backend/lib/stage-ids'
+import { useRequestsTab } from '@/stores/use-requests-tab'
 
 export function QueueTiles({ counts }: { counts: Record<StageId | 'all', number> }) {
+  const router = useRouter()
+  const pathname = usePathname()
+  const setTab = useRequestsTab((s) => s.setTab)
+
+  function openStage(stage: StageId) {
+    setTab(stage)
+    if (pathname !== '/requests' && !pathname?.startsWith('/requests/')) {
+      router.push('/requests')
+    }
+  }
+
   return (
     <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
       {STAGE_ORDER.map((s) => (
-        <Link key={s} href={`/queues/${s}`} className="group">
+        <button key={s} type="button" onClick={() => openStage(s)} className="group text-left">
           <Card className="transition-shadow group-hover:shadow-sm">
             <CardContent className="flex flex-col gap-1 p-4">
               <StageBadge stage={s} size="sm" />
@@ -19,7 +33,7 @@ export function QueueTiles({ counts }: { counts: Record<StageId | 'all', number>
               </div>
             </CardContent>
           </Card>
-        </Link>
+        </button>
       ))}
     </div>
   )

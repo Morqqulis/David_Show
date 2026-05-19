@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
+import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -13,6 +14,7 @@ import {
   useVerifyInvoice,
   useSetConfidential,
   useInvoice,
+  queryKeys,
 } from '@/hooks/use-ap-queries'
 
 import { InvoiceHeaderBar } from './header-bar'
@@ -30,6 +32,7 @@ export type { InvoiceViewData } from './types'
 
 export function InvoiceView({ data }: { data: InvoiceViewData }) {
   const router = useRouter()
+  const qc = useQueryClient()
 
   // SSR data seeds TanStack as initialData — TanStack won't refetch until
   // staleTime expires (10s) or a mutation invalidates the query. Without
@@ -65,6 +68,11 @@ export function InvoiceView({ data }: { data: InvoiceViewData }) {
     startTransition(async () => {
       await softDeleteInvoice(inv.id, reason)
       toast.success('Invoice moved to Trash')
+      // Sidebar/topbar counts and the /requests list both read from TanStack
+      // caches with staleTime: Infinity — drop them so the deleted invoice
+      // disappears from counts and the list on navigation.
+      await qc.invalidateQueries({ queryKey: queryKeys.queueCounts })
+      await qc.invalidateQueries({ queryKey: queryKeys.invoice(inv.id) })
       router.push('/requests')
     })
   }

@@ -2,13 +2,14 @@
 
 import { useEffect, useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
+import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { Card } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { saveLine, deleteLine } from '@/backend/actions/invoice'
 import { computeLine } from '@/backend/lib/tax-math'
-import { useLookups, type LookupsPayload } from '@/hooks/use-ap-queries'
+import { useLookups, queryKeys, type LookupsPayload } from '@/hooks/use-ap-queries'
 
 import { CodingHeaderBar } from './header-bar'
 import { CodingPreviewPane } from './preview-pane'
@@ -58,6 +59,7 @@ export function CodingScreen({
   const [previewCollapsed, setPreviewCollapsed] = useState(false)
   const [, startTransition] = useTransition()
   const router = useRouter()
+  const qc = useQueryClient()
 
   useEffect(() => {
     setLines(initialLines)
@@ -125,6 +127,10 @@ export function CodingScreen({
           description: line.description ?? null,
         })
         toast.success('Line saved')
+        // SSR (re-fetched via router.refresh) feeds CodingScreen's own props,
+        // but InvoiceView reads lines from the TanStack invoice cache — drop
+        // that cache so navigating back to /requests/[id] shows fresh data.
+        await qc.invalidateQueries({ queryKey: queryKeys.invoice(invoice.id) })
         router.refresh()
       } catch (e) {
         toast.error((e as Error).message)
@@ -141,6 +147,7 @@ export function CodingScreen({
     startTransition(async () => {
       await deleteLine(line.id!)
       toast.success('Line removed')
+      await qc.invalidateQueries({ queryKey: queryKeys.invoice(invoice.id) })
       router.refresh()
     })
   }

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { useRouter } from 'next/navigation'
+import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Send } from 'lucide-react'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { formatRelative, initials } from '@/backend/lib/formatting'
 import { postComment } from '@/backend/actions/invoice'
+import { queryKeys } from '@/hooks/use-ap-queries'
 import type { InvoiceViewComment } from '../types'
 
 export function NotesTab({
@@ -18,7 +19,7 @@ export function NotesTab({
   invoiceId: string | number
   comments: InvoiceViewComment[]
 }) {
-  const router = useRouter()
+  const qc = useQueryClient()
   const [body, setBody] = useState('')
   const [pending, startTransition] = useTransition()
 
@@ -28,7 +29,9 @@ export function NotesTab({
       await postComment(invoiceId, body.trim())
       setBody('')
       toast.success('Comment posted')
-      router.refresh()
+      // InvoiceView reads comments from the TanStack invoice cache; without
+      // an explicit invalidate, staleTime: Infinity keeps the old list.
+      await qc.invalidateQueries({ queryKey: queryKeys.invoice(invoiceId) })
     })
   }
 

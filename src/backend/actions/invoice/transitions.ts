@@ -1,6 +1,6 @@
 'use server'
 
-import { revalidatePath, revalidateTag } from 'next/cache'
+import { revalidatePath } from 'next/cache'
 import { getPayload } from '../../lib/payload'
 import { getStageBySystemId, nextStageSystemId, recordAudit } from '../../lib/stage-engine'
 import { STAGE_ORDER, type StageId } from '../../lib/stage-ids'
@@ -116,5 +116,4 @@ export async function verifyInvoice(invoiceId: string | number, verified: boolea
   })
   await recordAudit({ payload, invoiceId, actorId, action: verified ? 'verified' : 'unverified' })
   revalidatePath(`/requests/${invoiceId}`)
-  revalidatePath('/queues/treasurer_review')
 }
