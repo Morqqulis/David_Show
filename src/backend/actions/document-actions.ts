@@ -69,6 +69,8 @@ export async function uploadDocument(formData: FormData) {
 
   revalidatePath(`/requests/${invoiceId}`)
   revalidatePath(`/requests/${invoiceId}/coding`)
+
+  return { id: created.id as string | number }
 }
 
 export async function deleteDocument(documentId: string | number, invoiceId: string | number) {

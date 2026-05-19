@@ -1,7 +1,7 @@
 'use client'
 
 import { useTransition } from 'react'
-import { useRouter } from 'next/navigation'
+import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Download, FileText, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils'
 import { DocumentUpload } from '../../document-upload'
 import { formatRelative } from '@/backend/lib/formatting'
 import { deleteDocument } from '@/backend/actions/document-actions'
+import { queryKeys } from '@/hooks/use-ap-queries'
 import type { InvoiceViewDocument } from '../types'
 
 export function FilesTab({
@@ -22,8 +23,16 @@ export function FilesTab({
   activeDocId: string
   setActiveDocId: (id: string) => void
 }) {
-  const router = useRouter()
+  const qc = useQueryClient()
   const [, startTransition] = useTransition()
+
+  async function onUploaded(docId: string | number) {
+    // TanStack cache is the source of truth for the InvoiceView — without
+    // invalidation, staleTime: Infinity keeps the old document list and the
+    // preview pane never sees the new file.
+    await qc.invalidateQueries({ queryKey: queryKeys.invoice(invoiceId) })
+    setActiveDocId(String(docId))
+  }
 
   function onDelete(docId: string | number, filename?: string) {
     if (!confirm(`Remove ${filename ?? 'this document'} from this invoice?`)) return
@@ -31,13 +40,13 @@ export function FilesTab({
       await deleteDocument(docId, invoiceId)
       toast.success('Document removed')
       if (String(docId) === activeDocId) setActiveDocId('')
-      router.refresh()
+      await qc.invalidateQueries({ queryKey: queryKeys.invoice(invoiceId) })
     })
   }
 
   return (
     <div className="space-y-4">
-      <DocumentUpload invoiceId={invoiceId} />
+      <DocumentUpload invoiceId={invoiceId} onUploaded={onUploaded} />
       {documents.length === 0 ? (
         <div className="rounded-md border border-dashed border-border bg-muted/30 p-6 text-center text-sm text-muted-foreground">
           No documents yet. Upload above — PDFs, Word, and images are supported.

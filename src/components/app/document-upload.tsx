@@ -1,7 +1,6 @@
 'use client'
 
 import { useRef, useState, useTransition } from 'react'
-import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -9,8 +8,15 @@ import { uploadDocument } from '@/backend/actions/document-actions'
 
 const ACCEPTED = '.pdf,.doc,.docx,.jpg,.jpeg,.png,.tif,.tiff,application/pdf,image/*'
 
-export function DocumentUpload({ invoiceId, compact = false }: { invoiceId: string | number; compact?: boolean }) {
-  const router = useRouter()
+export function DocumentUpload({
+  invoiceId,
+  compact = false,
+  onUploaded,
+}: {
+  invoiceId: string | number
+  compact?: boolean
+  onUploaded?: (docId: string | number) => void | Promise<void>
+}) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [pending, startTransition] = useTransition()
   const [dragOver, setDragOver] = useState(false)
@@ -27,9 +33,10 @@ export function DocumentUpload({ invoiceId, compact = false }: { invoiceId: stri
       fd.set('file', file)
       fd.set('invoiceId', String(invoiceId))
       try {
-        await uploadDocument(fd)
+        const result = await uploadDocument(fd)
         toast.success(`${file.name} uploaded`)
-        router.refresh()
+        if (inputRef.current) inputRef.current.value = ''
+        await onUploaded?.(result.id)
       } catch (err) {
         toast.error((err as Error).message || 'Upload failed')
       }
