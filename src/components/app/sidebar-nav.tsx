@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import {
   LayoutDashboard,
   Inbox,
@@ -16,8 +16,11 @@ import {
 import { cn } from '@/lib/utils'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { useQueueCounts, type QueueCountsPayload } from '@/hooks/use-ap-queries'
+import { useRequestsTab, type RequestsTab } from '@/stores/use-requests-tab'
+import { useEffectiveCounts } from '@/stores/use-effective-counts'
 
-type Item = {
+type LinkItem = {
+  kind: 'link'
   href: string
   label: string
   icon: React.ComponentType<{ className?: string }>
@@ -25,41 +28,66 @@ type Item = {
   badgeTone?: 'default' | 'danger'
 }
 
+type TabItem = {
+  kind: 'tab'
+  tab: RequestsTab
+  label: string
+  icon: React.ComponentType<{ className?: string }>
+  badge?: number | string
+}
+
+type Item = LinkItem | TabItem
+
 export function SidebarNav({ initial }: { initial: QueueCountsPayload }) {
   const pathname = usePathname()
+  const router = useRouter()
+  const tab = useRequestsTab((s) => s.tab)
+  const setTab = useRequestsTab((s) => s.setTab)
   const { data } = useQueueCounts(initial)
-  const counts = data?.counts ?? initial.counts
+  const polled = data?.counts ?? initial.counts
+  // If /requests is mounted with a filter applied, prefer those filtered
+  // counts. Otherwise fall back to the unfiltered polled counts.
+  const effective = useEffectiveCounts((s) => s.counts)
+  const counts = effective ?? polled
   const alertsCount = data?.alerts ?? initial.alerts
+
+  const onRequestsPage = pathname === '/requests' || pathname?.startsWith('/requests/') || false
+
+  function activateTab(target: RequestsTab) {
+    setTab(target)
+    if (!onRequestsPage) router.push('/requests')
+  }
 
   const groups: { title: string; items: Item[] }[] = [
     {
       title: '',
       items: [
-        { href: '/dashboard', label: 'Home', icon: LayoutDashboard },
-        { href: '/requests', label: 'All Requests', icon: Receipt, badge: counts.all },
-        { href: '/new', label: 'New Invoice', icon: Plus },
+        { kind: 'link', href: '/dashboard', label: 'Home', icon: LayoutDashboard },
+        { kind: 'tab', tab: 'all', label: 'All Requests', icon: Receipt, badge: counts.all },
+        { kind: 'link', href: '/new', label: 'New Invoice', icon: Plus },
       ],
     },
     {
       title: 'Queues',
       items: [
-        { href: '/queues/to_be_assigned', label: 'To Be Assigned', icon: Inbox, badge: counts.to_be_assigned },
-        { href: '/queues/to_be_coded', label: 'To Be Coded', icon: ListChecks, badge: counts.to_be_coded },
-        { href: '/queues/conditional_approvals', label: 'Conditional Approvals', icon: ListChecks, badge: counts.conditional_approvals },
-        { href: '/queues/ap_review', label: 'AP Review', icon: ListChecks, badge: counts.ap_review },
-        { href: '/queues/ready_for_processing', label: 'Ready for Processing', icon: ListChecks, badge: counts.ready_for_processing },
-        { href: '/queues/processed', label: 'Processed', icon: ListChecks, badge: counts.processed },
-        { href: '/queues/treasurer_review', label: 'Treasurer Review', icon: ListChecks, badge: counts.treasurer_review },
-        { href: '/queues/completed', label: 'Completed', icon: ListChecks, badge: counts.completed },
+        { kind: 'tab', tab: 'to_be_assigned', label: 'To Be Assigned', icon: Inbox, badge: counts.to_be_assigned },
+        { kind: 'tab', tab: 'to_be_coded', label: 'To Be Coded', icon: ListChecks, badge: counts.to_be_coded },
+        { kind: 'tab', tab: 'conditional_approvals', label: 'Conditional Approvals', icon: ListChecks, badge: counts.conditional_approvals },
+        { kind: 'tab', tab: 'ap_review', label: 'AP Review', icon: ListChecks, badge: counts.ap_review },
+        { kind: 'tab', tab: 'ready_for_processing', label: 'Ready for Processing', icon: ListChecks, badge: counts.ready_for_processing },
+        { kind: 'tab', tab: 'processed', label: 'Processed', icon: ListChecks, badge: counts.processed },
+        { kind: 'tab', tab: 'treasurer_review', label: 'Treasurer Review', icon: ListChecks, badge: counts.treasurer_review },
+        { kind: 'tab', tab: 'completed', label: 'Completed', icon: ListChecks, badge: counts.completed },
       ],
     },
     {
       title: 'Admin',
       items: [
-        { href: '/email', label: 'Email', icon: Mail },
-        { href: '/settings', label: 'Settings', icon: Settings },
-        { href: '/trash', label: 'Trash', icon: Trash2 },
+        { kind: 'link', href: '/email', label: 'Email', icon: Mail },
+        { kind: 'link', href: '/settings', label: 'Settings', icon: Settings },
+        { kind: 'link', href: '/trash', label: 'Trash', icon: Trash2 },
         {
+          kind: 'link',
           href: '/alerts',
           label: 'Alerts',
           icon: AlertTriangle,
@@ -90,26 +118,27 @@ export function SidebarNav({ initial }: { initial: QueueCountsPayload }) {
             </div>
           ) : null}
           {group.items.map((item) => {
-            const active = pathname === item.href || pathname?.startsWith(item.href + '/')
+            const active =
+              item.kind === 'tab'
+                ? onRequestsPage && tab === item.tab
+                : isLinkActive(item.href, pathname ?? '')
             const Icon = item.icon
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={cn(
-                  'group flex items-center gap-2.5 rounded-md px-3 py-1.5 text-sm transition-colors',
-                  active
-                    ? 'bg-primary/10 text-primary font-medium'
-                    : 'text-foreground/80 hover:bg-muted hover:text-foreground',
-                )}
-              >
+            const key = item.kind === 'tab' ? `tab:${item.tab}` : item.href
+            const className = cn(
+              'group flex items-center gap-2.5 rounded-md px-3 py-1.5 text-sm transition-colors',
+              active
+                ? 'bg-primary/10 text-primary font-medium'
+                : 'text-foreground/80 hover:bg-muted hover:text-foreground',
+            )
+            const inner = (
+              <>
                 <Icon className={cn('h-4 w-4 shrink-0', active ? 'text-primary' : 'text-muted-foreground')} />
-                <span className="flex-1 truncate">{item.label}</span>
+                <span className="flex-1 truncate text-left">{item.label}</span>
                 {item.badge != null && Number(item.badge) > 0 ? (
                   <span
                     className={cn(
                       'rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums',
-                      item.badgeTone === 'danger'
+                      item.kind === 'link' && item.badgeTone === 'danger'
                         ? 'bg-destructive text-destructive-foreground'
                         : active
                           ? 'bg-primary/15 text-primary'
@@ -119,6 +148,16 @@ export function SidebarNav({ initial }: { initial: QueueCountsPayload }) {
                     {item.badge}
                   </span>
                 ) : null}
+              </>
+            )
+
+            return item.kind === 'tab' ? (
+              <button key={key} onClick={() => activateTab(item.tab)} className={cn(className, 'cursor-pointer')}>
+                {inner}
+              </button>
+            ) : (
+              <Link key={key} href={item.href} className={className}>
+                {inner}
               </Link>
             )
           })}
@@ -136,4 +175,8 @@ export function SidebarNav({ initial }: { initial: QueueCountsPayload }) {
       </div>
     </nav>
   )
+}
+
+function isLinkActive(href: string, pathname: string): boolean {
+  return pathname === href || pathname.startsWith(href + '/')
 }

@@ -1,19 +1,23 @@
 import Link from 'next/link'
 import { Download, FilePlus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { NativeSelect } from '@/components/ui/native-select'
 import { Topbar } from '@/components/app/topbar'
 import { PageHeader } from '@/components/app/page-header'
-import { StagePillBar } from '@/components/app/stage-pill-bar'
 import { StickyFilterBar } from '@/components/app/sticky-filter-bar'
-import { InvoiceTable } from '@/components/app/invoice-table'
-import { PaginationBar } from '@/components/app/pagination-bar'
-import { listInvoices, getStageCounts } from '@/backend/lib/queries'
+import { RequestsTabs } from '@/components/app/requests/requests-tabs'
+import { FiltersRow } from '@/components/app/requests/filters-row'
+import { fetchInvoicesForTabs } from '@/backend/lib/queries'
+import type { StageId } from '@/backend/lib/stage-ids'
+import { STAGE_ORDER } from '@/backend/lib/stage-ids'
 
 export const dynamic = 'force-dynamic'
 
-type SearchParams = { q?: string; vendor?: string; batch?: string; flag?: string; page?: string }
+type SearchParams = {
+  q?: string
+  flag?: string
+  tab?: string
+  completedPage?: string
+}
 
 export default async function AllRequestsPage({
   searchParams,
@@ -21,24 +25,23 @@ export default async function AllRequestsPage({
   searchParams: Promise<SearchParams>
 }) {
   const params = await searchParams
-  const page = params.page ? Math.max(1, parseInt(params.page, 10) || 1) : 1
-  // Run independent queries in parallel — saves ~300ms+ per page render.
-  const [counts, result] = await Promise.all([
-    getStageCounts(),
-    listInvoices({
-      search: params.q,
-      vendor: params.vendor,
-      batch: params.batch,
-      flags: params.flag ? ([params.flag] as never) : undefined,
-      page,
-    }),
-  ])
+  const completedPage = params.completedPage ? Math.max(1, parseInt(params.completedPage, 10) || 1) : 1
 
+  // Server returns ALL active invoices + first page of completed, unfiltered.
+  // Client applies q/flag filters in memory and recomputes counts. Server
+  // doesn't even read `?q=` / `?flag=` for the data fetch — those URL params
+  // exist only to deep-link the initial filter state into the client store.
+  const { active, completed } = await fetchInvoicesForTabs({ completedPage })
+
+  // Export CSV still hits server with the URL filters, so it works regardless
+  // of the client filter state (server applies them at query time).
   const exportQs = new URLSearchParams(
-    Object.entries({ q: params.q, vendor: params.vendor, batch: params.batch, flag: params.flag })
+    Object.entries({ q: params.q, flag: params.flag })
       .filter(([, v]) => v != null && v !== '')
       .map(([k, v]) => [k, String(v)]) as [string, string][],
   ).toString()
+
+  const initialTab = resolveInitialTab(params.tab)
 
   return (
     <>
@@ -47,7 +50,7 @@ export default async function AllRequestsPage({
         <StickyFilterBar>
           <PageHeader
             title="All Requests"
-            description={`${result.totalDocs} invoices · master list across every stage`}
+            description="Master list across every stage — switch tabs or apply filters to narrow"
             actions={
               <>
                 <Button asChild>
@@ -65,45 +68,18 @@ export default async function AllRequestsPage({
               </>
             }
           />
-          <StagePillBar counts={counts} activeStage="all" />
-          <FiltersRow initialSearch={params.q ?? ''} initialFlag={params.flag ?? ''} />
+          <FiltersRow initialQ={params.q ?? ''} initialFlag={params.flag ?? ''} />
         </StickyFilterBar>
 
-        <div className="space-y-4 pt-4">
-          <InvoiceTable rows={result.docs as never} />
-          <PaginationBar
-            page={result.page}
-            totalPages={result.totalPages}
-            totalDocs={result.totalDocs}
-            pageSize={result.pageSize}
-            basePath="/requests"
-          />
+        <div className="pt-4">
+          <RequestsTabs active={active} completed={completed} initialTab={initialTab} />
         </div>
       </main>
     </>
   )
 }
 
-function FiltersRow({ initialSearch, initialFlag }: { initialSearch: string; initialFlag: string }) {
-  return (
-    <form className="flex flex-wrap items-center gap-2" action="/requests" method="get">
-      <Input
-        name="q"
-        defaultValue={initialSearch}
-        placeholder="Search by invoice #, vendor, batch…"
-        className="h-9 w-80"
-      />
-      <NativeSelect name="flag" defaultValue={initialFlag} className="h-9">
-        <option value="">All flags</option>
-        <option value="archiveFailed">Archive failed</option>
-        <option value="possibleDuplicate">Possible duplicate</option>
-        <option value="ocrFailed">OCR failed</option>
-        <option value="noAttachment">No attachment</option>
-        <option value="vendorSetupRequired">Vendor setup required</option>
-      </NativeSelect>
-      <Button type="submit" variant="outline" size="sm" className="h-9">
-        Apply
-      </Button>
-    </form>
-  )
+function resolveInitialTab(raw: string | undefined): StageId | 'all' {
+  if (!raw || raw === 'all') return 'all'
+  return (STAGE_ORDER as readonly string[]).includes(raw) ? (raw as StageId) : 'all'
 }

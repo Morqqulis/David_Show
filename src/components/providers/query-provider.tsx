@@ -8,9 +8,14 @@ function makeQueryClient() {
   return new QueryClient({
     defaultOptions: {
       queries: {
-        staleTime: 30_000,
-        gcTime: 5 * 60_000,
+        // Data is fetched via SSR + seeded as initialData. Once the cache holds
+        // a value, we trust it forever — refetch happens only via explicit
+        // invalidation (mutations) or a manual refresh action.
+        staleTime: Infinity,
+        gcTime: 30 * 60_000,
+        refetchOnMount: false,
         refetchOnWindowFocus: false,
+        refetchOnReconnect: false,
         retry: 1,
       },
       mutations: {

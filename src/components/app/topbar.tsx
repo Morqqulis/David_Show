@@ -9,6 +9,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb'
+import { RefreshButton } from './refresh-button'
 
 export function Topbar({ crumbs }: { crumbs?: { label: string; href?: string }[] }) {
   return (
@@ -38,6 +39,7 @@ export function Topbar({ crumbs }: { crumbs?: { label: string; href?: string }[]
       ) : null}
 
       <div className="ml-auto flex items-center gap-2">
+        <RefreshButton />
         <Button variant="outline" size="icon" className="h-9 w-9" aria-label="Notifications">
           <Bell className="h-4 w-4" />
         </Button>

@@ -30,13 +30,13 @@ export const queryKeys = {
 // ────────────────────────────────────────────────────────────────────────────
 
 export function useQueueCounts(initialData?: QueueCountsPayload) {
+  // No polling, no auto-refetch. Counts come from SSR initialData; mutations
+  // invalidate this query explicitly, and the Refresh button in the topbar
+  // forces a re-fetch on demand.
   return useQuery({
     queryKey: queryKeys.queueCounts,
     queryFn: () => fetchQueueCounts(),
-    refetchInterval: 30_000,
-    refetchIntervalInBackground: false,
     initialData,
-    staleTime: 15_000,
   })
 }
 
@@ -44,8 +44,6 @@ export function useLookups(initialData?: LookupsPayload) {
   return useQuery({
     queryKey: queryKeys.lookups,
     queryFn: () => fetchLookups(),
-    staleTime: 10 * 60_000,
-    gcTime: 30 * 60_000,
     initialData,
   })
 }
@@ -57,7 +55,6 @@ export function useInvoice(
   return useQuery({
     queryKey: queryKeys.invoice(id),
     queryFn: () => fetchInvoice(id),
-    staleTime: 10_000,
     enabled: options?.enabled ?? true,
     // initialData lets TanStack skip the initial fetch when SSR already
     // provided the data. Without this, every InvoiceView mount duplicated

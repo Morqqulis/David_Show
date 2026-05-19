@@ -1,4 +1,5 @@
 import type { Payload } from 'payload'
+import { updateTag } from 'next/cache'
 import { STAGE_ORDER, type StageId } from './stage-ids'
 
 export type StageTransitionInput = {
@@ -35,6 +36,11 @@ export async function recordAudit(args: {
       context: (args.context ?? null) as never,
     },
   })
+  // Every audit-emitting action is a state mutation for the invoices domain.
+  // Drop the cached counts / lists / dashboard data so the next read sees fresh
+  // values. `updateTag` is Next.js 16's Server-Action-scoped primitive that
+  // also gives read-your-own-writes semantics for the actor.
+  updateTag('invoices')
 }
 
 export async function moveToStage(input: StageTransitionInput) {

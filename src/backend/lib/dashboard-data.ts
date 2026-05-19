@@ -1,3 +1,4 @@
+import { unstable_cache } from 'next/cache'
 import { getPayload } from './payload'
 import { getStageCounts } from './queries'
 import { MAX_PAGE_SIZE } from './queries'
@@ -34,7 +35,13 @@ export type DashboardData = {
 // Above the cap we mark the value as an estimate (still useful, but flagged).
 const OPEN_VALUE_SAMPLE_CAP = MAX_PAGE_SIZE * 4 // 200
 
-export async function getDashboardData(): Promise<DashboardData> {
+/**
+ * Wrapped in `unstable_cache` with TTL 30s and tag 'invoices'. Page nav back
+ * to /dashboard within that window hits the cache (no DB queries). Mutations
+ * call `revalidateTag('invoices')` to drop the cache immediately on changes.
+ */
+export const getDashboardData = unstable_cache(
+  async function getDashboardData(): Promise<DashboardData> {
   const payload = await getPayload()
   const sevenDays = new Date()
   sevenDays.setDate(sevenDays.getDate() + 7)
@@ -108,4 +115,7 @@ export async function getDashboardData(): Promise<DashboardData> {
       archiveFailed: archiveFailed.totalDocs,
     },
   }
-}
+  },
+  ['dashboard-data'],
+  { tags: ['invoices'], revalidate: 30 },
+)

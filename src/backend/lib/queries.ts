@@ -1,15 +1,40 @@
+import { unstable_cache } from 'next/cache'
 import { getPayload } from './payload'
 import { STAGE_ORDER, type StageId } from './stage-ids'
 
 export const MAX_PAGE_SIZE = 50
 export const DEFAULT_PAGE_SIZE = 25
 
+/**
+ * Cache contract for invoice-related queries.
+ *
+ * - `TTL = 30s` — natural staleness ceiling: if no mutation happens, data
+ *   refreshes at most every 30 seconds. Acceptable for AP workflows; users
+ *   making changes see fresh data immediately through tag invalidation.
+ * - `TAG = 'invoices'` — every invoice mutation calls `revalidateTag('invoices')`
+ *   so caches drop instantly on Approve/Reject/Create/etc.
+ */
+const CACHE_TTL = 30
+const CACHE_TAG = 'invoices'
+
 function clampPageSize(n?: number): number {
   if (!n || n <= 0) return DEFAULT_PAGE_SIZE
   return Math.min(n, MAX_PAGE_SIZE)
 }
 
-export async function getStageCounts() {
+/**
+ * Per-stage invoice counts.
+ *
+ * Accepts the same shared filter clauses as `fetchInvoicesForTabs` so the
+ * counts shown in TabsTrigger / Sidebar reflect any active filter (search,
+ * flag, vendor, batch). Without extraFilters it returns global totals.
+ *
+ * Wrapped in `unstable_cache` so multiple page navigations sharing the same
+ * filter args return cached counts without re-hitting the DB. Cache key
+ * includes the filter args automatically.
+ */
+export const getStageCounts = unstable_cache(
+  async function getStageCounts(extraFilters: Record<string, unknown>[] = []) {
   const payload = await getPayload()
   const stages = await payload.find({ collection: 'stages', limit: 50, depth: 0 })
   const stageMap = new Map<StageId, string | number>()
@@ -20,6 +45,9 @@ export async function getStageCounts() {
   // Fire all per-stage counts in parallel. Sequential await in a loop on
   // Vercel Postgres adds up to seconds; Promise.all collapses it to the
   // slowest single query (typically ~200-400ms).
+  const baseClauses = extraFilters.length
+    ? extraFilters
+    : [{ softDeleted: { not_equals: true } }]
   const results = await Promise.all(
     STAGE_ORDER.map(async (sysId) => {
       const stageId = stageMap.get(sysId)
@@ -27,11 +55,8 @@ export async function getStageCounts() {
       const res = await payload.count({
         collection: 'invoices',
         where: {
-          and: [
-            { currentStage: { equals: stageId } },
-            { softDeleted: { not_equals: true } },
-          ],
-        },
+          and: [...baseClauses, { currentStage: { equals: stageId } }],
+        } as never,
       })
       return [sysId, res.totalDocs] as const
     }),
@@ -53,16 +78,23 @@ export async function getStageCounts() {
     counts.all += total
   }
   return counts
-}
+  },
+  ['stage-counts'],
+  { tags: [CACHE_TAG], revalidate: CACHE_TTL },
+)
 
-export async function getAlertsCount() {
-  const payload = await getPayload()
-  const res = await payload.count({
-    collection: 'invoices',
-    where: { 'flags.archiveFailed': { equals: true } },
-  })
-  return res.totalDocs
-}
+export const getAlertsCount = unstable_cache(
+  async function getAlertsCount() {
+    const payload = await getPayload()
+    const res = await payload.count({
+      collection: 'invoices',
+      where: { 'flags.archiveFailed': { equals: true } },
+    })
+    return res.totalDocs
+  },
+  ['alerts-count'],
+  { tags: [CACHE_TAG], revalidate: CACHE_TTL },
+)
 
 export type InvoiceListFilters = {
   stage?: StageId | 'all'
@@ -85,6 +117,133 @@ export type InvoiceListResult = {
   hasPrevPage: boolean
   hasNextPage: boolean
 }
+
+/**
+ * Build the shared filter clauses (search / vendor / batch / flag / confidential).
+ * Stage filter is layered on top by callers depending on their need.
+ */
+function buildFilterClauses(filters: Omit<InvoiceListFilters, 'stage' | 'page' | 'pageSize'>) {
+  const and: Record<string, unknown>[] = [{ softDeleted: { not_equals: true } }]
+  if (filters.search) {
+    and.push({
+      or: [
+        { invoiceNumber: { like: filters.search } },
+        { poNumber: { like: filters.search } },
+        { 'vendor.name': { like: filters.search } },
+        { 'batch.number': { like: filters.search } },
+      ],
+    })
+  }
+  if (filters.vendor) and.push({ vendor: { equals: filters.vendor } })
+  if (filters.department) and.push({ departments: { contains: filters.department } })
+  if (filters.batch) and.push({ batch: { equals: filters.batch } })
+  if (filters.flags) {
+    for (const flag of filters.flags) {
+      and.push({ [`flags.${flag}`]: { equals: true } })
+    }
+  }
+  if (filters.confidential != null) and.push({ confidential: { equals: filters.confidential } })
+  return and
+}
+
+/**
+ * Minimal field set for the invoice list/table view. Payload's `select` lets us
+ * skip heavy fields (customFields and the full flags group are still pulled
+ * because the UI uses priority + flag chips; everything else is dropped).
+ * Brings per-row payload from ~3-5KB to ~400 bytes.
+ */
+const INVOICE_LIST_SELECT = {
+  invoiceNumber: true,
+  invoiceDate: true,
+  dueDate: true,
+  subtotal: true,
+  totalTax: true,
+  grandTotal: true,
+  confidential: true,
+  flags: true,
+  customFields: true,
+  vendor: true,
+  currentStage: true,
+  departments: true,
+  assignees: true,
+  batch: true,
+  createdAt: true,
+  updatedAt: true,
+}
+
+export type TabbedInvoicesResult = {
+  active: InvoiceListResult['docs']
+  completed: InvoiceListResult
+  counts: Record<StageId | 'all', number>
+}
+
+/**
+ * Single SSR fetch for the /requests page (Tabs UX).
+ *
+ * - `active`: every invoice NOT in `completed` stage, no pagination — they get
+ *   distributed client-side across 8 tabs by `currentStage.systemId`. With
+ *   `select` + `depth: 1` the payload is light (~200-1000 records typical for
+ *   an AP shop).
+ * - `completed`: paginated separately because the completed archive can grow
+ *   unbounded over years. Honors `completedPage` for navigation.
+ * - `counts`: per-stage totals from cheap COUNT queries (already parallelized).
+ *
+ * All three run in parallel via `Promise.all`.
+ */
+export const fetchInvoicesForTabs = unstable_cache(
+  async function fetchInvoicesForTabs(
+    filters: Omit<InvoiceListFilters, 'stage'> & { completedPage?: number } = {},
+  ): Promise<TabbedInvoicesResult> {
+  const payload = await getPayload()
+  const filterClauses = buildFilterClauses(filters)
+  const completedPage = Math.max(1, filters.completedPage ?? 1)
+  const completedPageSize = clampPageSize(filters.pageSize)
+
+  const [activeRes, completedRes, counts] = await Promise.all([
+    payload.find({
+      collection: 'invoices',
+      where: {
+        and: [...filterClauses, { 'currentStage.systemId': { not_equals: 'completed' } }],
+      } as never,
+      select: INVOICE_LIST_SELECT as never,
+      depth: 1,
+      sort: '-updatedAt',
+      pagination: false,
+      limit: 0,
+    }),
+    payload.find({
+      collection: 'invoices',
+      where: {
+        and: [...filterClauses, { 'currentStage.systemId': { equals: 'completed' } }],
+      } as never,
+      select: INVOICE_LIST_SELECT as never,
+      depth: 1,
+      sort: '-updatedAt',
+      limit: completedPageSize,
+      page: completedPage,
+    }),
+    // Pass the same filters into counts so TabsTrigger + Sidebar reflect the
+    // active filter, not global totals.
+    getStageCounts(filterClauses),
+  ])
+
+  return {
+    active: activeRes.docs as InvoiceListResult['docs'],
+    completed: {
+      docs: completedRes.docs as InvoiceListResult['docs'],
+      totalDocs: completedRes.totalDocs,
+      totalPages: completedRes.totalPages,
+      page: completedRes.page ?? completedPage,
+      pageSize: completedPageSize,
+      hasPrevPage: completedRes.hasPrevPage,
+      hasNextPage: completedRes.hasNextPage,
+    },
+    counts,
+  }
+  },
+  ['invoices-for-tabs'],
+  { tags: [CACHE_TAG], revalidate: CACHE_TTL },
+)
 
 export async function listInvoices(filters: InvoiceListFilters = {}): Promise<InvoiceListResult> {
   const payload = await getPayload()
