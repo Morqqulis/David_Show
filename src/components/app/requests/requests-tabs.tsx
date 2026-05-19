@@ -16,8 +16,12 @@ type Doc = InvoiceListResult['docs'][number]
 export type RequestsTabsProps = {
   active: Doc[]
   completed: InvoiceListResult
-  /** From `?tab=` on initial server render — seeds the store on mount. */
-  initialTab: StageId | 'all'
+  /**
+   * From `?tab=` on initial server render. `undefined` means the URL is silent
+   * — keep whatever the store has so back-nav and sidebar-initiated jumps are
+   * preserved. Only a defined value (deep link) overrides the store on mount.
+   */
+  urlTab: StageId | 'all' | undefined
 }
 
 /**
@@ -34,7 +38,7 @@ export type RequestsTabsProps = {
  * Server still owns: completed pagination, full historical archive search
  * (intentionally not implemented yet — flag for later if a customer needs it).
  */
-export function RequestsTabs({ active, completed, initialTab }: RequestsTabsProps) {
+export function RequestsTabs({ active, completed, urlTab }: RequestsTabsProps) {
   const pathname = usePathname()
   const tab = useRequestsTab((s) => s.tab)
   const setTab = useRequestsTab((s) => s.setTab)
@@ -42,10 +46,12 @@ export function RequestsTabs({ active, completed, initialTab }: RequestsTabsProp
   const q = useRequestsFilters((s) => s.q)
   const flag = useRequestsFilters((s) => s.flag)
 
-  // Seed tab from URL on mount (deep-link support).
+  // Seed tab from URL on mount only when the URL explicitly carries one.
+  // Without this guard, navigating from sidebar (which sets the store and
+  // pushes to /requests with no ?tab=) would be undone here on mount.
   useEffect(() => {
-    setTab(initialTab)
-  }, [initialTab, setTab])
+    if (urlTab !== undefined) setTab(urlTab)
+  }, [urlTab, setTab])
 
   // Filter `active` array in memory. Same predicate is used for both the
   // grouped per-stage view and the recomputed counts.

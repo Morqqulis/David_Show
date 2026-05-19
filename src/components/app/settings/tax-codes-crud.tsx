@@ -1,11 +1,13 @@
 'use client'
 
 import { useMemo } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import type { ColumnDef } from '@tanstack/react-table'
 import { DataTableColumnHeader } from '@/components/ui/data-table/column-header'
 import { Badge } from '@/components/ui/badge'
 import { SimpleCrud } from './simple-crud'
 import { upsertTaxCode, deleteTaxCode } from '@/backend/actions/settings-actions'
+import { queryKeys } from '@/hooks/use-ap-queries'
 
 type TaxCodeRow = {
   id: string | number
@@ -51,6 +53,7 @@ function buildColumns(): ColumnDef<TaxCodeRow>[] {
 
 export function TaxCodesCrud({ rows }: { rows: TaxCodeRow[] }) {
   const columns = useMemo(() => buildColumns(), [])
+  const qc = useQueryClient()
   return (
     <SimpleCrud<TaxCodeRow>
       title="Tax code"
@@ -64,6 +67,10 @@ export function TaxCodesCrud({ rows }: { rows: TaxCodeRow[] }) {
       ]}
       upsert={upsertTaxCode}
       remove={deleteTaxCode}
+      // Coding screen reads tax rates from the cached `useLookups` query —
+      // without this invalidate, a rate change here would not flow through to
+      // line-tax math until the next full reload.
+      afterMutate={() => qc.invalidateQueries({ queryKey: queryKeys.lookups })}
     />
   )
 }

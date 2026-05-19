@@ -1,11 +1,10 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { redirect } from 'next/navigation'
 import { getPayload } from '../lib/payload'
 import { getStageBySystemId, recordAudit } from '../lib/stage-engine'
 
-export async function createInvoiceManual(formData: FormData) {
+export async function createInvoiceManual(formData: FormData): Promise<{ id: string | number }> {
   const payload = await getPayload()
   const invoiceNumber = String(formData.get('invoiceNumber') ?? '').trim()
   const vendorId = formData.get('vendor') ? String(formData.get('vendor')) : null
@@ -51,5 +50,6 @@ export async function createInvoiceManual(formData: FormData) {
   await recordAudit({ payload, invoiceId: invoice.id, actorId, action: 'created', context: { via: 'manual' } })
   revalidatePath('/requests')
   revalidatePath('/dashboard')
-  redirect(`/requests/${invoice.id}`)
+
+  return { id: invoice.id as string | number }
 }

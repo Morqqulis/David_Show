@@ -41,7 +41,7 @@ export default async function AllRequestsPage({
       .map(([k, v]) => [k, String(v)]) as [string, string][],
   ).toString()
 
-  const initialTab = resolveInitialTab(params.tab)
+  const urlTab = resolveUrlTab(params.tab)
 
   return (
     <>
@@ -68,18 +68,24 @@ export default async function AllRequestsPage({
               </>
             }
           />
-          <FiltersRow initialQ={params.q ?? ''} initialFlag={params.flag ?? ''} />
+          <FiltersRow urlQ={params.q} urlFlag={params.flag} />
         </StickyFilterBar>
 
         <div className="pt-4">
-          <RequestsTabs active={active} completed={completed} initialTab={initialTab} />
+          <RequestsTabs active={active} completed={completed} urlTab={urlTab} />
         </div>
       </main>
     </>
   )
 }
 
-function resolveInitialTab(raw: string | undefined): StageId | 'all' {
-  if (!raw || raw === 'all') return 'all'
-  return (STAGE_ORDER as readonly string[]).includes(raw) ? (raw as StageId) : 'all'
+// Returns `undefined` for missing/invalid values so the client can distinguish
+// "URL says jump to this tab" from "URL is silent — trust the store". The
+// latter matters on browser back-nav: re-seeding from a default-empty URL was
+// clobbering whatever tab the user had selected before they drilled into an
+// invoice.
+function resolveUrlTab(raw: string | undefined): StageId | 'all' | undefined {
+  if (!raw) return undefined
+  if (raw === 'all') return 'all'
+  return (STAGE_ORDER as readonly string[]).includes(raw) ? (raw as StageId) : undefined
 }

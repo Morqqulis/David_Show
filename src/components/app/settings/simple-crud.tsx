@@ -38,6 +38,12 @@ export type SimpleCrudProps<T extends { id: string | number }> = {
   remove: (id: string | number) => Promise<void>
   canDelete?: (row: T) => boolean
   emptyMessage?: string
+  /**
+   * Runs after a successful upsert / remove, before `router.refresh()`.
+   * Use it to invalidate client-side TanStack caches whose data this CRUD
+   * mutates (e.g. tax-codes edits invalidate `useLookups`).
+   */
+  afterMutate?: () => void | Promise<void>
 }
 
 export function SimpleCrud<T extends { id: string | number }>({
@@ -49,6 +55,7 @@ export function SimpleCrud<T extends { id: string | number }>({
   remove,
   canDelete = () => true,
   emptyMessage,
+  afterMutate,
 }: SimpleCrudProps<T>) {
   const router = useRouter()
   const [, startTransition] = useTransition()
@@ -59,6 +66,7 @@ export function SimpleCrud<T extends { id: string | number }>({
     startTransition(async () => {
       await upsert(editing?.id ?? null, patch)
       toast.success(`${title} saved`)
+      await afterMutate?.()
       router.refresh()
       setOpen(false)
       setEditing(null)
@@ -70,6 +78,7 @@ export function SimpleCrud<T extends { id: string | number }>({
     startTransition(async () => {
       await remove(row.id)
       toast.success(`${title} deleted`)
+      await afterMutate?.()
       router.refresh()
     })
   }

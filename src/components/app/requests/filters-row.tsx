@@ -13,11 +13,13 @@ import { useRequestsFilters, type InvoiceFlagFilter } from '@/stores/use-request
  * React commit. No form submit, no server roundtrip on Apply.
  */
 export function FiltersRow({
-  initialQ = '',
-  initialFlag = '',
+  urlQ,
+  urlFlag,
 }: {
-  initialQ?: string
-  initialFlag?: string
+  /** When defined, deep-link override; when undefined, trust the store. */
+  urlQ?: string
+  /** When defined, deep-link override; when undefined, trust the store. */
+  urlFlag?: string
 }) {
   const q = useRequestsFilters((s) => s.q)
   const flag = useRequestsFilters((s) => s.flag)
@@ -26,10 +28,13 @@ export function FiltersRow({
   const reset = useRequestsFilters((s) => s.reset)
   const seed = useRequestsFilters((s) => s.seed)
 
-  // Seed once from URL params on mount — keeps deep-links working.
+  // Seed from URL only when at least one filter is in the URL. Otherwise the
+  // store's current value wins — so back-nav from /requests/[id] preserves the
+  // filter the user had typed before drilling in.
   useEffect(() => {
-    seed({ q: initialQ, flag: initialFlag as InvoiceFlagFilter })
-  }, [initialQ, initialFlag, seed])
+    if (urlQ === undefined && urlFlag === undefined) return
+    seed({ q: urlQ, flag: urlFlag as InvoiceFlagFilter | undefined })
+  }, [urlQ, urlFlag, seed])
 
   const dirty = q !== '' || flag !== ''
 
