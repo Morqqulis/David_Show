@@ -16,6 +16,46 @@ export const DEFAULT_PAGE_SIZE = 25
  */
 const CACHE_TTL = 30
 const CACHE_TAG = 'invoices'
+// Stage definitions (label, order, active) change rarely and only through
+// Settings → Workflow. Tag separately from the high-churn invoices cache so
+// admin edits invalidate sidebar/topbar without dumping per-invoice queries.
+const STAGES_CACHE_TAG = 'stages'
+const STAGES_CACHE_TTL = 300
+
+export type StageDefinition = {
+  id: string | number
+  systemId: StageId
+  label: string
+  order: number
+  active: boolean
+}
+
+export const getStageDefinitions = unstable_cache(
+  async function getStageDefinitions(): Promise<StageDefinition[]> {
+    const payload = await getPayload()
+    const res = await payload.find({
+      collection: 'stages',
+      limit: 50,
+      depth: 0,
+      sort: 'order',
+    })
+    return (res.docs as Array<{
+      id: string | number
+      systemId: StageId
+      label: string
+      order: number
+      active: boolean
+    }>).map((s) => ({
+      id: s.id,
+      systemId: s.systemId,
+      label: s.label,
+      order: s.order,
+      active: s.active,
+    }))
+  },
+  ['stage-definitions'],
+  { tags: [STAGES_CACHE_TAG], revalidate: STAGES_CACHE_TTL },
+)
 
 function clampPageSize(n?: number): number {
   if (!n || n <= 0) return DEFAULT_PAGE_SIZE

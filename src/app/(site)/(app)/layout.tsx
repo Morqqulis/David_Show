@@ -1,5 +1,10 @@
 import { SidebarNav } from '@/components/app/sidebar-nav'
-import { getAlertsCount, getStageCounts } from '@/backend/lib/queries'
+import {
+  getAlertsCount,
+  getStageCounts,
+  getStageDefinitions,
+  type StageDefinition,
+} from '@/backend/lib/queries'
 
 export const dynamic = 'force-dynamic'
 
@@ -20,15 +25,20 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // polls every 30s for live updates.
   let counts = EMPTY_COUNTS
   let alerts = 0
+  let stages: StageDefinition[] = []
   try {
-    ;[counts, alerts] = await Promise.all([getStageCounts(), getAlertsCount()])
+    ;[counts, alerts, stages] = await Promise.all([
+      getStageCounts(),
+      getAlertsCount(),
+      getStageDefinitions(),
+    ])
   } catch {
     // Tables not seeded yet — sidebar starts at 0 and polls catch up.
   }
   return (
     <div className="flex h-screen w-full overflow-hidden">
       <aside className="w-[240px] shrink-0 border-r border-border bg-sidebar text-sidebar-foreground">
-        <SidebarNav initial={{ counts, alerts }} />
+        <SidebarNav initial={{ counts, alerts, stages }} />
       </aside>
       <div className="flex min-w-0 flex-1 flex-col">{children}</div>
     </div>

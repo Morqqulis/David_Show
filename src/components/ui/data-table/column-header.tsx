@@ -21,6 +21,11 @@ export function DataTableColumnHeader<TData, TValue>({
   title: string
   className?: string
 }) {
+  // Same React Compiler caveat as DataTableViewOptions / InvoiceTableToolbar —
+  // `column` is a stable reference but `column.getIsSorted()` is a reactive
+  // read whose result must trigger a re-render to update the sort arrow icon.
+  'use no memo'
+
   if (!column.getCanSort()) {
     return <span className={cn('text-xs uppercase tracking-wide text-muted-foreground', className)}>{title}</span>
   }

@@ -1,7 +1,7 @@
 'use client'
 
-import { useTransition } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useTransition } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Switch } from '@/components/ui/switch'
 import { Input } from '@/components/ui/input'
@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge'
 import { Lock } from 'lucide-react'
 import { updateStage } from '@/backend/actions/settings-actions'
+import { queryKeys, type QueueCountsPayload } from '@/hooks/use-ap-queries'
 
 type Stage = {
   id: string | number
@@ -24,15 +25,83 @@ type Stage = {
   order: number
 }
 
-export function WorkflowTable({ stages }: { stages: Stage[] }) {
-  const router = useRouter()
+/**
+ * Optimistic UX contract for this table:
+ *
+ *  - The `stages` prop seeds local state ONCE on mount. After that, this
+ *    component is the source of truth. The server is a persistence layer
+ *    we sync to in the background.
+ *  - Every Switch / label edit flips the local state synchronously on the
+ *    same task as the click — no `router.refresh()`, no "Postgres
+ *    roundtrip → re-render whole route" pause. The user gets a 0-frame
+ *    visual response.
+ *  - The server action runs inside a transition. On success we just drop the
+ *    TanStack queue-counts cache so the sidebar picks up the label rename.
+ *  - On failure we roll back the optimistic patch and surface a toast.
+ *  - We intentionally skip `router.refresh()` — the previous implementation
+ *    paid 300-500ms per toggle for a server-side re-render that this view
+ *    no longer needs (it has its own local truth).
+ */
+export function WorkflowTable({ stages: initialStages }: { stages: Stage[] }) {
+  const qc = useQueryClient()
+  const [stages, setStages] = useState<Stage[]>(initialStages)
   const [, startTransition] = useTransition()
 
-  function save(id: string | number, patch: Record<string, unknown>, msg: string) {
+  function save(
+    id: string | number,
+    patch: Partial<Stage>,
+  ) {
+    // Snapshot for rollback BEFORE mutating.
+    const previous = stages.find((s) => String(s.id) === String(id))
+    if (!previous) return
+
+    setStages((cur) =>
+      cur.map((s) => (String(s.id) === String(id) ? { ...s, ...patch } : s)),
+    )
+
+    // Mirror the patch into the TanStack `queueCounts` cache so the sidebar
+    // (and every consumer of `useStageLabels`) reflects the rename / toggle
+    // synchronously. Without this we'd be paying ~3s for an
+    // `invalidateQueries → fetchQueueCounts → 9 Postgres roundtrips` cycle
+    // every time someone flips a switch, even though we already know the
+    // exact patch to apply.
+    const previousCache = qc.getQueryData<QueueCountsPayload>(queryKeys.queueCounts)
+    if (previousCache) {
+      qc.setQueryData<QueueCountsPayload>(queryKeys.queueCounts, {
+        ...previousCache,
+        stages: previousCache.stages.map((s) =>
+          String(s.id) === String(id)
+            ? {
+                ...s,
+                // The cache shape only exposes the fields that drive the
+                // sidebar — label, order, active. Other toggles (bulkAssign,
+                // verifyFlag, etc.) don't affect the sidebar so we skip them.
+                ...(patch.label !== undefined ? { label: patch.label } : null),
+                ...(patch.order !== undefined ? { order: patch.order } : null),
+                ...(patch.active !== undefined ? { active: patch.active } : null),
+              }
+            : s,
+        ),
+      })
+    }
+
     startTransition(async () => {
-      await updateStage(id, patch)
-      toast.success(msg)
-      router.refresh()
+      try {
+        await updateStage(id, patch as Record<string, unknown>)
+        // No success toast. The Switch / label is already in its new visual
+        // state from the optimistic update — confirming "Saved" 1-2s later,
+        // after the user has moved on, just creates a stream of stale toasts
+        // when they flip several switches in a row.
+      } catch (err) {
+        setStages((cur) =>
+          cur.map((s) => (String(s.id) === String(id) ? previous : s)),
+        )
+        if (previousCache) {
+          qc.setQueryData<QueueCountsPayload>(queryKeys.queueCounts, previousCache)
+        }
+        console.error('[settings/workflow] updateStage failed', { id, patch, err })
+        toast.error('Could not save — change rolled back')
+      }
     })
   }
 
@@ -58,10 +127,15 @@ export function WorkflowTable({ stages }: { stages: Stage[] }) {
               <TableCell>
                 <div className="flex items-center gap-2">
                   <Input
+                    // `key` ties the uncontrolled input to the underlying row;
+                    // if state ever rolls back we want the input to re-mount
+                    // with the rolled-back label rather than keeping the
+                    // typed-but-not-saved value visible.
+                    key={`${s.id}:${s.label}`}
                     defaultValue={s.label}
                     onBlur={(e) => {
                       const v = e.currentTarget.value
-                      if (v && v !== s.label) save(s.id, { label: v }, 'Label saved')
+                      if (v && v !== s.label) save(s.id, { label: v })
                     }}
                     className="h-8 max-w-[200px]"
                   />
@@ -73,23 +147,23 @@ export function WorkflowTable({ stages }: { stages: Stage[] }) {
                 <Switch
                   checked={s.active}
                   disabled={s.required}
-                  onCheckedChange={(v) => save(s.id, { active: v }, `${s.label} ${v ? 'enabled' : 'disabled'}`)}
+                  onCheckedChange={(v) => save(s.id, { active: v })}
                 />
               </TableCell>
               <TableCell>
-                <Switch checked={s.bulkAssign} onCheckedChange={(v) => save(s.id, { bulkAssign: v }, 'Saved')} />
+                <Switch checked={s.bulkAssign} onCheckedChange={(v) => save(s.id, { bulkAssign: v })} />
               </TableCell>
               <TableCell>
-                <Switch checked={s.batchAssign} onCheckedChange={(v) => save(s.id, { batchAssign: v }, 'Saved')} />
+                <Switch checked={s.batchAssign} onCheckedChange={(v) => save(s.id, { batchAssign: v })} />
               </TableCell>
               <TableCell>
-                <Switch checked={s.verifyFlag} onCheckedChange={(v) => save(s.id, { verifyFlag: v }, 'Saved')} />
+                <Switch checked={s.verifyFlag} onCheckedChange={(v) => save(s.id, { verifyFlag: v })} />
               </TableCell>
               <TableCell>
-                <Switch checked={s.allowReject} onCheckedChange={(v) => save(s.id, { allowReject: v }, 'Saved')} />
+                <Switch checked={s.allowReject} onCheckedChange={(v) => save(s.id, { allowReject: v })} />
               </TableCell>
               <TableCell>
-                <Switch checked={s.allowReassign} onCheckedChange={(v) => save(s.id, { allowReassign: v }, 'Saved')} />
+                <Switch checked={s.allowReassign} onCheckedChange={(v) => save(s.id, { allowReassign: v })} />
               </TableCell>
             </TableRow>
           ))}

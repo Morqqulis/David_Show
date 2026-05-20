@@ -5,11 +5,12 @@ import { usePathname } from 'next/navigation'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { InvoiceTable } from '@/components/app/invoice-table'
 import { PaginationBar } from '@/components/app/pagination-bar'
-import { STAGE_LABELS, STAGE_ORDER, type StageId } from '@/backend/lib/stage-ids'
+import { STAGE_ORDER, type StageId } from '@/backend/lib/stage-ids'
 import type { InvoiceListResult } from '@/backend/lib/queries'
 import { useRequestsTab } from '@/stores/use-requests-tab'
 import { useEffectiveCounts, type StageCounts } from '@/stores/use-effective-counts'
 import { useRequestsFilters, type InvoiceFlagFilter } from '@/stores/use-requests-filters'
+import { useStageLabels } from '@/hooks/use-stage-labels'
 
 type Doc = InvoiceListResult['docs'][number]
 
@@ -45,6 +46,7 @@ export function RequestsTabs({ active, completed, urlTab }: RequestsTabsProps) {
   const setEffectiveCounts = useEffectiveCounts((s) => s.setCounts)
   const q = useRequestsFilters((s) => s.q)
   const flag = useRequestsFilters((s) => s.flag)
+  const labels = useStageLabels()
 
   // Seed tab from URL on mount only when the URL explicitly carries one.
   // Without this guard, navigating from sidebar (which sets the store and
@@ -115,7 +117,7 @@ export function RequestsTabs({ active, completed, urlTab }: RequestsTabsProps) {
             value={s}
             className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
           >
-            {STAGE_LABELS[s]} <CountBadge>{counts[s]}</CountBadge>
+            {labels[s]} <CountBadge>{counts[s]}</CountBadge>
           </TabsTrigger>
         ))}
       </TabsList>

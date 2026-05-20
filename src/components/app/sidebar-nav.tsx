@@ -18,6 +18,13 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { useQueueCounts, type QueueCountsPayload } from '@/hooks/use-ap-queries'
 import { useRequestsTab, type RequestsTab } from '@/stores/use-requests-tab'
 import { useEffectiveCounts } from '@/stores/use-effective-counts'
+import type { StageId } from '@/backend/lib/stage-ids'
+
+function iconForStage(systemId: StageId): React.ComponentType<{ className?: string }> {
+  // `to_be_assigned` is the intake bucket and gets the Inbox icon to match its
+  // semantic; every other queue is a checklist of work to do.
+  return systemId === 'to_be_assigned' ? Inbox : ListChecks
+}
 
 type LinkItem = {
   kind: 'link'
@@ -50,6 +57,10 @@ export function SidebarNav({ initial }: { initial: QueueCountsPayload }) {
   const effective = useEffectiveCounts((s) => s.counts)
   const counts = effective ?? polled
   const alertsCount = data?.alerts ?? initial.alerts
+  // Stage definitions are SSR-seeded and refreshed on the same poll as counts;
+  // editing a stage label in Settings invalidates the 'stages' cache tag, so
+  // the next poll surfaces the new label without a manual refresh.
+  const stages = data?.stages ?? initial.stages
 
   const onRequestsPage = pathname === '/requests' || pathname?.startsWith('/requests/') || false
 
@@ -69,16 +80,18 @@ export function SidebarNav({ initial }: { initial: QueueCountsPayload }) {
     },
     {
       title: 'Queues',
-      items: [
-        { kind: 'tab', tab: 'to_be_assigned', label: 'To Be Assigned', icon: Inbox, badge: counts.to_be_assigned },
-        { kind: 'tab', tab: 'to_be_coded', label: 'To Be Coded', icon: ListChecks, badge: counts.to_be_coded },
-        { kind: 'tab', tab: 'conditional_approvals', label: 'Conditional Approvals', icon: ListChecks, badge: counts.conditional_approvals },
-        { kind: 'tab', tab: 'ap_review', label: 'AP Review', icon: ListChecks, badge: counts.ap_review },
-        { kind: 'tab', tab: 'ready_for_processing', label: 'Ready for Processing', icon: ListChecks, badge: counts.ready_for_processing },
-        { kind: 'tab', tab: 'processed', label: 'Processed', icon: ListChecks, badge: counts.processed },
-        { kind: 'tab', tab: 'treasurer_review', label: 'Treasurer Review', icon: ListChecks, badge: counts.treasurer_review },
-        { kind: 'tab', tab: 'completed', label: 'Completed', icon: ListChecks, badge: counts.completed },
-      ],
+      // Hide inactive stages that also have zero invoices — they're noise for
+      // the AP user. Keep an inactive stage visible when it still has work
+      // sitting in it so admins can drain it.
+      items: stages
+        .filter((s) => s.active || (counts[s.systemId] ?? 0) > 0)
+        .map<TabItem>((s) => ({
+          kind: 'tab',
+          tab: s.systemId,
+          label: s.label,
+          icon: iconForStage(s.systemId),
+          badge: counts[s.systemId] ?? 0,
+        })),
     },
     {
       title: 'Admin',

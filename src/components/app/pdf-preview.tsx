@@ -36,8 +36,13 @@ export function PdfPreview({ doc, invoiceNumber }: { doc?: PreviewDocument | nul
   }
 
   if (isPdf) {
+    // `key` on iframe forces a fresh element when the active document
+    // changes. Chrome's built-in PDF viewer occasionally fails to reload
+    // when only `src` mutates between documents, leaving the previous
+    // doc's state and surfacing "Failed to load PDF document".
     return (
       <iframe
+        key={`${doc.id}:${doc.url}`}
         src={doc.url}
         className="h-full w-full"
         title={doc.filename ?? 'Invoice PDF'}

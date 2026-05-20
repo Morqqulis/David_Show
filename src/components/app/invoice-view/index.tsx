@@ -22,11 +22,12 @@ import { InvoiceWorkflowStepper } from './stepper'
 import { InvoicePreviewPane } from './preview-pane'
 import { InvoiceActionBar } from './action-bar'
 import { HeaderTab } from './tabs/header-tab'
-import { CodingTab } from './tabs/coding-tab'
 import { FilesTab } from './tabs/files-tab'
 import { NotesTab } from './tabs/notes-tab'
 import { LogTab } from './tabs/log-tab'
 import type { InvoiceViewData } from './types'
+
+type InvoiceTab = 'header' | 'files' | 'notes' | 'log'
 
 export type { InvoiceViewData } from './types'
 
@@ -39,7 +40,6 @@ export function InvoiceView({ data }: { data: InvoiceViewData }) {
   // initialData, mounting this view duplicated the SSR fetch (3s wasted).
   const { data: live } = useInvoice(data.invoice.id, { enabled: true, initialData: data })
   const inv = (live?.invoice ?? data.invoice) as InvoiceViewData['invoice']
-  const lines = (live?.lines ?? data.lines) as InvoiceViewData['lines']
   const comments = (live?.comments ?? data.comments) as InvoiceViewData['comments']
   const audit = (live?.audit ?? data.audit) as InvoiceViewData['audit']
   const docs = ((live?.documents ?? data.documents) as InvoiceViewData['documents']) ?? []
@@ -47,8 +47,27 @@ export function InvoiceView({ data }: { data: InvoiceViewData }) {
   const [previewCollapsed, setPreviewCollapsed] = useState(false)
   const [activeDocId, setActiveDocId] = useState<string>(docs[0] ? String(docs[0].id) : '')
   const activeDoc = docs.find((d) => String(d.id) === activeDocId) ?? docs[0]
-  const [tab, setTab] = useState<string>(data.defaultTab ?? 'header')
+  const initialTab: InvoiceTab =
+    data.defaultTab === 'files' || data.defaultTab === 'notes' || data.defaultTab === 'log'
+      ? data.defaultTab
+      : 'header'
+  const [tab, setTab] = useState<InvoiceTab>(initialTab)
   const [isPending, startTransition] = useTransition()
+
+  // Coding lives on a dedicated screen (/coding) because it has a different
+  // layout (preview-left/editor-right with more horizontal room) and a fully
+  // editable line table. Clicking the Coding tab here navigates rather than
+  // swapping content — that keeps the Coding tab feeling like a normal tab
+  // but routes the user to the actual editor.
+  const handleTabChange = (next: string): void => {
+    if (next === 'coding') {
+      router.push(`/requests/${inv.id}/coding`)
+      return
+    }
+    if (next === 'header' || next === 'files' || next === 'notes' || next === 'log') {
+      setTab(next)
+    }
+  }
 
   const approve = useApproveInvoice()
   const reject = useRejectInvoice()
@@ -101,7 +120,11 @@ export function InvoiceView({ data }: { data: InvoiceViewData }) {
         </section>
 
         <section className="flex flex-col overflow-hidden rounded-lg border border-border bg-card">
-          <Tabs value={tab} onValueChange={setTab} className="flex flex-1 flex-col overflow-hidden">
+          <Tabs
+            value={tab}
+            onValueChange={handleTabChange}
+            className="flex flex-1 flex-col overflow-hidden"
+          >
             <TabsList className="m-2 mb-0 grid w-fit grid-cols-5">
               <TabsTrigger value="header">Header</TabsTrigger>
               <TabsTrigger value="coding">Coding</TabsTrigger>
@@ -112,13 +135,6 @@ export function InvoiceView({ data }: { data: InvoiceViewData }) {
             <div className="flex-1 overflow-y-auto p-4">
               <TabsContent value="header" className="m-0">
                 <HeaderTab inv={inv} />
-              </TabsContent>
-              <TabsContent value="coding" className="m-0">
-                <CodingTab
-                  invoiceId={inv.id}
-                  lines={lines}
-                  totals={{ subtotal: inv.subtotal, tax: inv.totalTax, total: inv.grandTotal }}
-                />
               </TabsContent>
               <TabsContent value="files" className="m-0">
                 <FilesTab

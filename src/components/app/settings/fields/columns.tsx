@@ -30,6 +30,15 @@ export function buildFieldsColumns({
 }): ColumnDef<FieldRow>[] {
   return [
     {
+      accessorKey: 'order',
+      meta: { label: 'Order' },
+      size: 60,
+      header: ({ column }) => <DataTableColumnHeader column={column} title="#" />,
+      cell: ({ row }) => (
+        <span className="tabular-nums text-xs text-muted-foreground">{row.original.order ?? '—'}</span>
+      ),
+    },
+    {
       accessorKey: 'fieldKey',
       meta: { label: 'Key' },
       header: ({ column }) => <DataTableColumnHeader column={column} title="Key" />,

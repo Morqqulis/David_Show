@@ -13,6 +13,9 @@ import type { InvoiceRow } from './types'
  * which is more useful than client-side filter on the current 25-row page.
  */
 export function InvoiceTableToolbar({ table }: { table: Table<InvoiceRow> }) {
+  // Same React Compiler caveat as DataTableViewOptions — `table` is stable but
+  // the state reads (`sorting`, `columnFilters`) are reactive.
+  'use no memo'
   const isSorted = table.getState().sorting.length > 0
   const isFiltered = table.getState().columnFilters.length > 0
   const hasActiveState = isSorted || isFiltered

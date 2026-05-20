@@ -1,9 +1,13 @@
+'use client'
+
 import { Check } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { STAGE_LABELS, STAGE_ORDER, type StageId } from '@/backend/lib/stage-ids'
+import { STAGE_ORDER, type StageId } from '@/backend/lib/stage-ids'
+import { useStageLabels } from '@/hooks/use-stage-labels'
 
 export function InvoiceWorkflowStepper({ currentStage }: { currentStage: StageId }) {
   const currentIdx = STAGE_ORDER.indexOf(currentStage)
+  const labels = useStageLabels()
   return (
     <div className="flex items-center gap-0.5 overflow-x-auto rounded-lg border border-border bg-card p-2">
       {STAGE_ORDER.map((s, i) => {
@@ -29,7 +33,7 @@ export function InvoiceWorkflowStepper({ currentStage }: { currentStage: StageId
               >
                 {done ? <Check className="h-3 w-3" /> : i + 1}
               </span>
-              <span>{STAGE_LABELS[s]}</span>
+              <span>{labels[s]}</span>
             </div>
             {i < STAGE_ORDER.length - 1 ? (
               <span className={cn('h-px w-3', done ? 'bg-green-600' : 'bg-border')} />

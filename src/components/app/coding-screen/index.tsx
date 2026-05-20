@@ -174,21 +174,23 @@ export function CodingScreen({
         />
 
         <Card className="flex flex-col overflow-hidden">
-          <Tabs defaultValue="coding" className="flex flex-1 flex-col overflow-hidden">
+          <Tabs
+            value="coding"
+            onValueChange={(next) => {
+              // Tabs other than Coding live on the invoice view page — mirror
+              // the navigation contract of InvoiceView so the user gets unified
+              // tab bars on both screens.
+              if (next === 'coding') return
+              router.push(`/requests/${invoice.id}?tab=${next}`)
+            }}
+            className="flex flex-1 flex-col overflow-hidden"
+          >
             <TabsList className="m-2 mb-0 grid w-fit grid-cols-5">
+              <TabsTrigger value="header">Header</TabsTrigger>
               <TabsTrigger value="coding">Coding</TabsTrigger>
-              <TabsTrigger value="header" disabled>
-                Header
-              </TabsTrigger>
-              <TabsTrigger value="files" disabled>
-                Files
-              </TabsTrigger>
-              <TabsTrigger value="notes" disabled>
-                Notes
-              </TabsTrigger>
-              <TabsTrigger value="log" disabled>
-                Log
-              </TabsTrigger>
+              <TabsTrigger value="files">Files</TabsTrigger>
+              <TabsTrigger value="notes">Notes</TabsTrigger>
+              <TabsTrigger value="log">Log</TabsTrigger>
             </TabsList>
             <TabsContent value="coding" className="m-0 flex-1 overflow-y-auto p-4">
               <div className="space-y-3">

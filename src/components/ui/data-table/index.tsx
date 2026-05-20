@@ -16,7 +16,7 @@ import {
   type Row,
   type Table as RtTable,
 } from '@tanstack/react-table'
-import { useMemo, useState } from 'react'
+import { Fragment, useMemo, useState } from 'react'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { cn } from '@/lib/utils'
 
@@ -116,58 +116,38 @@ export function DataTable<TData>({
                 </TableCell>
               </TableRow>
             ) : (
-              table.getRowModel().rows.map((row) => {
-                const isOpen = row.getIsExpanded()
-                return (
-                  <RowGroup
-                    key={row.id}
-                    row={row}
-                    isOpen={isOpen}
-                    visibleColumnCount={visibleColumnCount}
-                    onRowMouseEnter={onRowMouseEnter}
-                    renderSubComponent={renderSubComponent}
-                  />
-                )
-              })
+              // Inline row rendering — matches the canonical shadcn data-table
+              // example. An earlier extraction into a `<RowGroup>` component
+              // created a memoizable boundary: React Compiler (enabled in
+              // next.config.ts) saw stable `row`+`isOpen` props and skipped
+              // re-rendering on `rowSelection` changes, so per-row checkboxes
+              // never reflected the live `row.getIsSelected()` value.
+              table.getRowModel().rows.map((row) => (
+                <Fragment key={row.id}>
+                  <TableRow
+                    data-state={row.getIsSelected() ? 'selected' : undefined}
+                    onMouseEnter={onRowMouseEnter ? () => onRowMouseEnter(row.original) : undefined}
+                  >
+                    {row.getVisibleCells().map((cell) => (
+                      <TableCell key={cell.id}>
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                  {row.getIsExpanded() && renderSubComponent ? (
+                    <TableRow>
+                      <TableCell colSpan={visibleColumnCount} className="bg-muted/20 px-6 py-4">
+                        {renderSubComponent(row)}
+                      </TableCell>
+                    </TableRow>
+                  ) : null}
+                </Fragment>
+              ))
             )}
           </TableBody>
         </Table>
       </div>
       {renderFooter ? <div className="border-t border-border p-3">{renderFooter(table)}</div> : null}
     </div>
-  )
-}
-
-function RowGroup<TData>({
-  row,
-  isOpen,
-  visibleColumnCount,
-  onRowMouseEnter,
-  renderSubComponent,
-}: {
-  row: Row<TData>
-  isOpen: boolean
-  visibleColumnCount: number
-  onRowMouseEnter?: (row: TData) => void
-  renderSubComponent?: (row: Row<TData>) => React.ReactNode
-}) {
-  return (
-    <>
-      <TableRow
-        data-state={row.getIsSelected() && 'selected'}
-        onMouseEnter={onRowMouseEnter ? () => onRowMouseEnter(row.original) : undefined}
-      >
-        {row.getVisibleCells().map((cell) => (
-          <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
-        ))}
-      </TableRow>
-      {isOpen && renderSubComponent ? (
-        <TableRow>
-          <TableCell colSpan={visibleColumnCount} className="bg-muted/20 px-6 py-4">
-            {renderSubComponent(row)}
-          </TableCell>
-        </TableRow>
-      ) : null}
-    </>
   )
 }

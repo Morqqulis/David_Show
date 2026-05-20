@@ -30,6 +30,12 @@ import { Label } from '@/components/ui/label'
  * (e.g. the Stage column) on some TanStack v8 paths.
  */
 export function DataTableViewOptions<TData>({ table }: { table: Table<TData> }) {
+  // Opt out of React Compiler auto-memoization. `table` is a stable reference,
+  // so the compiler would consider this component's inputs unchanged across
+  // renders and skip re-execution — but `table.getState().columnVisibility` IS
+  // a reactive read whose result changes per render. Without this directive,
+  // toggling a checkbox hides the column but the checkmark icon stays.
+  'use no memo'
   const visibility = table.getState().columnVisibility
   const columns = table.getAllLeafColumns().filter((c) => c.getCanHide())
 

@@ -1,5 +1,8 @@
+'use client'
+
 import { cn } from '@/lib/utils'
-import { STAGE_LABELS, STAGE_TONE, type StageId } from '@/backend/lib/stage-ids'
+import { STAGE_TONE, type StageId } from '@/backend/lib/stage-ids'
+import { useStageLabels } from '@/hooks/use-stage-labels'
 
 const TONE_CLASSES: Record<string, string> = {
   slate: 'bg-slate-100 text-slate-700 ring-slate-200',
@@ -20,7 +23,8 @@ export function StageBadge({
   className?: string
 }) {
   const systemId = typeof stage === 'string' ? stage : (stage.systemId as StageId)
-  const label = typeof stage === 'string' ? STAGE_LABELS[systemId] : (stage.label ?? STAGE_LABELS[systemId])
+  const labels = useStageLabels()
+  const label = typeof stage === 'string' ? labels[systemId] : (stage.label ?? labels[systemId])
   const tone = typeof stage === 'string' ? STAGE_TONE[systemId] : (stage.tone ?? STAGE_TONE[systemId])
   return (
     <span

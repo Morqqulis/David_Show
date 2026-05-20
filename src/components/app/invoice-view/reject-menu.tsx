@@ -13,7 +13,8 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { STAGE_LABELS, STAGE_ORDER, type StageId } from '@/backend/lib/stage-ids'
+import { STAGE_ORDER, type StageId } from '@/backend/lib/stage-ids'
+import { useStageLabels } from '@/hooks/use-stage-labels'
 
 export function RejectMenu({
   currentStage,
@@ -28,6 +29,7 @@ export function RejectMenu({
   const [target, setTarget] = useState<StageId | ''>('')
   const [reason, setReason] = useState('')
   const validTargets = STAGE_ORDER.slice(0, STAGE_ORDER.indexOf(currentStage))
+  const labels = useStageLabels()
 
   if (validTargets.length === 0) return null
 
@@ -58,7 +60,7 @@ export function RejectMenu({
               <SelectContent>
                 {validTargets.map((s) => (
                   <SelectItem key={s} value={s}>
-                    {STAGE_LABELS[s]}
+                    {labels[s]}
                   </SelectItem>
                 ))}
               </SelectContent>

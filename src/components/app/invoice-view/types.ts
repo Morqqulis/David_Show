@@ -66,5 +66,8 @@ export type InvoiceViewData = {
   comments: InvoiceViewComment[]
   audit: InvoiceViewAuditEvent[]
   documents?: InvoiceViewDocument[]
-  defaultTab?: 'header' | 'coding' | 'files' | 'notes' | 'log'
+  // 'coding' is intentionally excluded — that tab is a separate page
+  // (/coding), and the invoice page redirects ?tab=coding before this prop is
+  // ever populated.
+  defaultTab?: 'header' | 'files' | 'notes' | 'log'
 }

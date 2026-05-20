@@ -1,17 +1,28 @@
 'use server'
 
-import { getInvoiceWithLines, getStageCounts, getAlertsCount } from '../lib/queries'
+import {
+  getInvoiceWithLines,
+  getStageCounts,
+  getAlertsCount,
+  getStageDefinitions,
+  type StageDefinition,
+} from '../lib/queries'
 import { getPayload } from '../lib/payload'
 import type { StageId } from '../lib/stage-ids'
 
 export type QueueCountsPayload = {
   counts: Record<StageId | 'all', number>
   alerts: number
+  stages: StageDefinition[]
 }
 
 export async function fetchQueueCounts(): Promise<QueueCountsPayload> {
-  const [counts, alerts] = await Promise.all([getStageCounts(), getAlertsCount()])
-  return { counts, alerts }
+  const [counts, alerts, stages] = await Promise.all([
+    getStageCounts(),
+    getAlertsCount(),
+    getStageDefinitions(),
+  ])
+  return { counts, alerts, stages }
 }
 
 export type LookupRow = { id: string | number; code?: string; description?: string; label?: string }
