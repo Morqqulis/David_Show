@@ -11,6 +11,10 @@ import { Lock } from 'lucide-react'
 import { updateStage } from '@/backend/actions/settings-actions'
 import { queryKeys, type QueueCountsPayload } from '@/hooks/use-ap-queries'
 
+// Single Sonner id for ALL save events from this table. Rapid toggles
+// produce one evolving toast instead of a vertical queue.
+const WORKFLOW_SAVE_TOAST_ID = 'workflow-table-save'
+
 type Stage = {
   id: string | number
   systemId: string
@@ -88,10 +92,10 @@ export function WorkflowTable({ stages: initialStages }: { stages: Stage[] }) {
     startTransition(async () => {
       try {
         await updateStage(id, patch as Record<string, unknown>)
-        // No success toast. The Switch / label is already in its new visual
-        // state from the optimistic update — confirming "Saved" 1-2s later,
-        // after the user has moved on, just creates a stream of stale toasts
-        // when they flip several switches in a row.
+        // Deduplicated toast: the SAME id makes Sonner replace the existing
+        // toast instead of stacking a new one, so 10 rapid toggles produce
+        // ONE evolving "Saved" pill rather than a queue of 10 stale messages.
+        toast.success('Saved', { id: WORKFLOW_SAVE_TOAST_ID, duration: 1500 })
       } catch (err) {
         setStages((cur) =>
           cur.map((s) => (String(s.id) === String(id) ? previous : s)),
@@ -100,7 +104,7 @@ export function WorkflowTable({ stages: initialStages }: { stages: Stage[] }) {
           qc.setQueryData<QueueCountsPayload>(queryKeys.queueCounts, previousCache)
         }
         console.error('[settings/workflow] updateStage failed', { id, patch, err })
-        toast.error('Could not save — change rolled back')
+        toast.error('Could not save — change rolled back', { id: WORKFLOW_SAVE_TOAST_ID })
       }
     })
   }

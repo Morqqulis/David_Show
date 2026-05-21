@@ -12,6 +12,10 @@ import { FieldDialog } from './field-dialog'
 
 type Section = { id: string | number; name: string }
 
+// Single deduped Sonner id for ALL field saves — rapid edits collapse into
+// one evolving toast instead of stacking.
+const FIELDS_TOAST_ID = 'fields-table-save'
+
 /**
  * Optimistic UX contract — same as SimpleCrud / WorkflowTable:
  *  - The `fields` prop seeds local state once. Local state is the source of
@@ -52,10 +56,11 @@ export function FieldsTable({
       startTransition(async () => {
         try {
           await upsertField(editingId, patch as Record<string, unknown>)
+          toast.success('Field saved', { id: FIELDS_TOAST_ID, duration: 1500 })
         } catch (err) {
           setFields((cur) => cur.map((f) => (String(f.id) === String(editingId) ? previous : f)))
           console.error('[settings/fields] upsert failed', { id: editingId, err })
-          toast.error('Could not save — change rolled back')
+          toast.error('Could not save — change rolled back', { id: FIELDS_TOAST_ID })
         }
       })
       return
@@ -72,10 +77,11 @@ export function FieldsTable({
       try {
         const created = await upsertField(null, patch as Record<string, unknown>)
         setFields((cur) => cur.map((f) => (f.id === tmpId ? { ...f, id: created.id } : f)))
+        toast.success('Field saved', { id: FIELDS_TOAST_ID, duration: 1500 })
       } catch (err) {
         setFields((cur) => cur.filter((f) => f.id !== tmpId))
         console.error('[settings/fields] create failed', { patch, err })
-        toast.error('Could not save — change rolled back')
+        toast.error('Could not save — change rolled back', { id: FIELDS_TOAST_ID })
       }
     })
   }
@@ -92,10 +98,11 @@ export function FieldsTable({
     startTransition(async () => {
       try {
         await deleteField(row.id)
+        toast.success('Field deleted', { id: FIELDS_TOAST_ID, duration: 1500 })
       } catch (err) {
         setFields(previousFields)
         console.error('[settings/fields] delete failed', { id: row.id, err })
-        toast.error('Could not delete — change rolled back')
+        toast.error('Could not delete — change rolled back', { id: FIELDS_TOAST_ID })
       }
     })
   }

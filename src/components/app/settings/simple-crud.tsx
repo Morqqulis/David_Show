@@ -77,6 +77,9 @@ export function SimpleCrud<T extends { id: string | number }>({
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<T | null>(null)
   const tmpCounter = useRef(0)
+  // All saves from this CRUD share a single Sonner toast id — rapid
+  // add/edit/delete sequences collapse into one evolving pill.
+  const toastId = `simple-crud-${title.toLowerCase().replace(/\s+/g, '-')}`
 
   function applyTo(id: string | number, mapper: (row: T) => T): void {
     setRows((cur) => cur.map((r) => (String(r.id) === String(id) ? mapper(r) : r)))
@@ -95,10 +98,11 @@ export function SimpleCrud<T extends { id: string | number }>({
         try {
           await upsert(editingId, patch)
           await afterMutate?.()
+          toast.success(`${title} saved`, { id: toastId, duration: 1500 })
         } catch (err) {
           applyTo(editingId, () => previous)
           console.error(`[settings/${title.toLowerCase()}] upsert failed`, { id: editingId, err })
-          toast.error(`Could not save — change rolled back`)
+          toast.error(`Could not save — change rolled back`, { id: toastId })
         }
       })
       return
@@ -116,10 +120,11 @@ export function SimpleCrud<T extends { id: string | number }>({
         const created = await upsert(null, patch)
         applyTo(tmpId, (row) => ({ ...row, id: created.id }))
         await afterMutate?.()
+        toast.success(`${title} saved`, { id: toastId, duration: 1500 })
       } catch (err) {
         setRows((cur) => cur.filter((r) => r.id !== tmpId))
         console.error(`[settings/${title.toLowerCase()}] create failed`, { patch, err })
-        toast.error(`Could not save — change rolled back`)
+        toast.error(`Could not save — change rolled back`, { id: toastId })
       }
     })
   }
@@ -132,10 +137,11 @@ export function SimpleCrud<T extends { id: string | number }>({
       try {
         await remove(row.id)
         await afterMutate?.()
+        toast.success(`${title} deleted`, { id: toastId, duration: 1500 })
       } catch (err) {
         setRows(previousRows)
         console.error(`[settings/${title.toLowerCase()}] delete failed`, { id: row.id, err })
-        toast.error(`Could not delete — change rolled back`)
+        toast.error(`Could not delete — change rolled back`, { id: toastId })
       }
     })
   }
