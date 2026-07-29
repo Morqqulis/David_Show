@@ -64,7 +64,6 @@ export function CodingTable({
               lines.map((line, idx) => (
                 <CodingRow
                   key={String(line.id ?? line._localId ?? idx)}
-                  idx={idx}
                   line={line}
                   opts={opts}
                   taxById={taxById}

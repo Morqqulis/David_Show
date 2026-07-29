@@ -5,17 +5,20 @@ import { Card, CardContent } from '@/components/ui/card'
 import { StageBadge } from '../stage-badge'
 import { STAGE_ORDER, type StageId } from '@/backend/lib/stage-ids'
 import { useRequestsTab } from '@/stores/use-requests-tab'
+import { isRequestsListPath, requestsListHref } from '@/lib/requests-routes'
 
 export function QueueTiles({ counts }: { counts: Record<StageId | 'all', number> }) {
   const router = useRouter()
   const pathname = usePathname()
   const setTab = useRequestsTab((s) => s.setTab)
 
+  // Same rule as the left-hand navigation: on the list itself the screen picks
+  // the change up from the shared store and keeps the user's arrangement; from
+  // anywhere else the queue has to travel in the address or the server answers
+  // "all" and the tile click is thrown away.
   function openStage(stage: StageId) {
     setTab(stage)
-    if (pathname !== '/requests' && !pathname?.startsWith('/requests/')) {
-      router.push('/requests')
-    }
+    if (!isRequestsListPath(pathname)) router.push(requestsListHref(stage))
   }
 
   return (

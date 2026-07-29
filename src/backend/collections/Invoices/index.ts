@@ -58,6 +58,12 @@ export const Invoices: CollectionConfig = {
         { name: 'ocrFailed', type: 'checkbox', defaultValue: false },
         { name: 'vendorSetupRequired', type: 'checkbox', defaultValue: false },
         { name: 'possibleDuplicate', type: 'checkbox', defaultValue: false },
+        // Amount Before Taxes plus Total Tax does not equal the Invoice Total.
+        // Lives here rather than with the other intake provenance so Finance
+        // can pull every affected invoice out of All Requests with the flag
+        // filter — a warning only visible once the invoice is already open is
+        // a warning nobody goes looking for.
+        { name: 'amountMismatch', type: 'checkbox', defaultValue: false },
         { name: 'archiveFailed', type: 'checkbox', defaultValue: false },
         { name: 'archiveAttempts', type: 'number', defaultValue: 0 },
       ],
@@ -73,6 +79,40 @@ export const Invoices: CollectionConfig = {
       name: 'ocrConfidence',
       type: 'number',
       admin: { description: '0-1 vendor confidence score from OCR' },
+    },
+
+    {
+      name: 'intake',
+      type: 'group',
+      admin: {
+        description:
+          'Where an emailed invoice came from. Empty on invoices somebody typed in.',
+      },
+      fields: [
+        { name: 'sender', type: 'text', index: true },
+        { name: 'subject', type: 'text' },
+        { name: 'receivedAt', type: 'date' },
+        {
+          name: 'messageId',
+          type: 'text',
+          admin: { description: 'Mailbox reference for the original email, so it can be opened again.' },
+        },
+        {
+          name: 'internetMessageId',
+          type: 'text',
+          index: true,
+          admin: { description: 'The message id the sending mail system stamped on the email.' },
+        },
+        { name: 'attachmentName', type: 'text' },
+      ],
+    },
+    {
+      name: 'ocrFields',
+      type: 'json',
+      admin: {
+        description:
+          'Keys of the header fields whose values were read off the scan rather than typed by a person. Drives the "read from the invoice" marker in the header tab.',
+      },
     },
 
     {

@@ -87,6 +87,18 @@ export interface Config {
     'coding-restrictions': CodingRestriction;
     'email-templates': EmailTemplate;
     'email-triggers': EmailTrigger;
+    'email-settings': EmailSetting;
+    'coding-rules': CodingRule;
+    'gl-format': GlFormat;
+    'intake-settings': IntakeSetting;
+    'duplicate-rules': DuplicateRule;
+    'action-reasons': ActionReason;
+    'saved-views': SavedView;
+    'department-segment-map': DepartmentSegmentMap;
+    'ocr-field-map': OcrFieldMap;
+    'email-suppression': EmailSuppression;
+    'intake-quarantine': IntakeQuarantine;
+    'intake-events': IntakeEvent;
     forms: Form;
     'form-submissions': FormSubmission;
     'payload-kv': PayloadKv;
@@ -116,6 +128,18 @@ export interface Config {
     'coding-restrictions': CodingRestrictionsSelect<false> | CodingRestrictionsSelect<true>;
     'email-templates': EmailTemplatesSelect<false> | EmailTemplatesSelect<true>;
     'email-triggers': EmailTriggersSelect<false> | EmailTriggersSelect<true>;
+    'email-settings': EmailSettingsSelect<false> | EmailSettingsSelect<true>;
+    'coding-rules': CodingRulesSelect<false> | CodingRulesSelect<true>;
+    'gl-format': GlFormatSelect<false> | GlFormatSelect<true>;
+    'intake-settings': IntakeSettingsSelect<false> | IntakeSettingsSelect<true>;
+    'duplicate-rules': DuplicateRulesSelect<false> | DuplicateRulesSelect<true>;
+    'action-reasons': ActionReasonsSelect<false> | ActionReasonsSelect<true>;
+    'saved-views': SavedViewsSelect<false> | SavedViewsSelect<true>;
+    'department-segment-map': DepartmentSegmentMapSelect<false> | DepartmentSegmentMapSelect<true>;
+    'ocr-field-map': OcrFieldMapSelect<false> | OcrFieldMapSelect<true>;
+    'email-suppression': EmailSuppressionSelect<false> | EmailSuppressionSelect<true>;
+    'intake-quarantine': IntakeQuarantineSelect<false> | IntakeQuarantineSelect<true>;
+    'intake-events': IntakeEventsSelect<false> | IntakeEventsSelect<true>;
     forms: FormsSelect<false> | FormsSelect<true>;
     'form-submissions': FormSubmissionsSelect<false> | FormSubmissionsSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
@@ -219,6 +243,7 @@ export interface Role {
     | null;
   confidential?: boolean | null;
   bypassCodingRestrictions?: boolean | null;
+  allowSelfReassign?: boolean | null;
   isSystem?: boolean | null;
   updatedAt: string;
   createdAt: string;
@@ -261,6 +286,10 @@ export interface Department {
   name: string;
   code: string;
   head?: (number | null) | User;
+  /**
+   * Who approves invoices coded to this department's GL accounts. Leave blank to use the department head.
+   */
+  reviewer?: (number | null) | User;
   updatedAt: string;
   createdAt: string;
 }
@@ -290,18 +319,18 @@ export interface Vendor {
  */
 export interface GlAccount {
   id: number;
+  /**
+   * Must match the GL account format set in Settings → Coding Restrictions.
+   */
   code: string;
   description: string;
-  /**
-   * Split of the code by configured delimiter. Auto-populated.
-   */
+  active?: boolean | null;
   segments?:
     | {
         value?: string | null;
         id?: string | null;
       }[]
     | null;
-  active?: boolean | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -389,6 +418,9 @@ export interface Field {
     | null;
   lookupEntity?: ('vendors' | 'gl-accounts' | 'cost_center' | 'project' | 'fund' | 'job_code' | 'tax-codes') | null;
   mandatoryAtStages?: (number | Stage)[] | null;
+  /**
+   * Offer this field as a column on All Requests. The CSV export follows whatever columns the user has on screen, so there is no separate export setting.
+   */
   showAsColumn?: boolean | null;
   exportable?: boolean | null;
   isSystem?: boolean | null;
@@ -463,6 +495,7 @@ export interface Invoice {
     ocrFailed?: boolean | null;
     vendorSetupRequired?: boolean | null;
     possibleDuplicate?: boolean | null;
+    amountMismatch?: boolean | null;
     archiveFailed?: boolean | null;
     archiveAttempts?: number | null;
   };
@@ -471,6 +504,35 @@ export interface Invoice {
    * 0-1 vendor confidence score from OCR
    */
   ocrConfidence?: number | null;
+  /**
+   * Where an emailed invoice came from. Empty on invoices somebody typed in.
+   */
+  intake?: {
+    sender?: string | null;
+    subject?: string | null;
+    receivedAt?: string | null;
+    /**
+     * Mailbox reference for the original email, so it can be opened again.
+     */
+    messageId?: string | null;
+    /**
+     * The message id the sending mail system stamped on the email.
+     */
+    internetMessageId?: string | null;
+    attachmentName?: string | null;
+  };
+  /**
+   * Keys of the header fields whose values were read off the scan rather than typed by a person. Drives the "read from the invoice" marker in the header tab.
+   */
+  ocrFields?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
   /**
    * Header custom field values keyed by Field.fieldKey. Driven by Settings → Fields.
    */
@@ -568,6 +630,7 @@ export interface AuditEvent {
     | 'approved'
     | 'rejected'
     | 'coded'
+    | 'amounts_corrected'
     | 'batch_applied'
     | 'batch_wiped'
     | 'batch_closed'
@@ -631,6 +694,8 @@ export interface ApprovalRule {
   createdAt: string;
 }
 /**
+ * Retired. Coding restrictions are configured under Settings → Coding Restrictions.
+ *
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "coding-restrictions".
  */
@@ -711,6 +776,467 @@ export interface EmailTrigger {
       }[]
     | null;
   enabled?: boolean | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * Sender identity and the header/footer wrapped around every email body.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "email-settings".
+ */
+export interface EmailSetting {
+  id: number;
+  /**
+   * Display name recipients see in their inbox.
+   */
+  fromName: string;
+  fromEmail: string;
+  /**
+   * Where replies go. Leave blank to use the From address.
+   */
+  replyTo?: string | null;
+  /**
+   * HTML placed above every template body. May contain placeholders from the token registry.
+   */
+  headerHtml: string;
+  /**
+   * HTML placed below every template body. May contain placeholders from the token registry.
+   */
+  footerHtml: string;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "coding-rules".
+ */
+export interface CodingRule {
+  id: number;
+  /**
+   * Header amount the coding lines must add up to.
+   */
+  matchTarget: 'subtotal' | 'grandTotal' | 'disabled';
+  /**
+   * What happens when an invoice is not fully coded.
+   */
+  onMismatch: 'block' | 'warn' | 'disabled';
+  /**
+   * Shown to the user when an approval is blocked or warned.
+   */
+  message: string;
+  /**
+   * Rounding allowance in dollars, e.g. 0.01 for one cent.
+   */
+  tolerance: number;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * One row only. Edit it from Settings → Coding Restrictions.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "gl-format".
+ */
+export interface GlFormat {
+  id: number;
+  /**
+   * One X for each character of the code, with the separator between the parts. Parts may be different lengths, for example XX-XXX-XXXX-XXXXX.
+   */
+  mask: string;
+  /**
+   * What each part of the code is called, left to right.
+   */
+  segmentLabels?:
+    | {
+        label: string;
+        id?: string | null;
+      }[]
+    | null;
+  /**
+   * Which part of the code names the sub-department, counting from the left. The first part is 1.
+   */
+  departmentSegment: number;
+  /**
+   * Where sub-departments that no range covers are sent. New capital-project codes land here so Finance can see them and map them.
+   */
+  catchAllDepartment: number | Department;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * The mailbox invoices are emailed to, and who may email it.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "intake-settings".
+ */
+export interface IntakeSetting {
+  id: number;
+  /**
+   * When off, nothing arriving in the mailbox is turned into an invoice.
+   */
+  enabled?: boolean | null;
+  /**
+   * The shared mailbox invoices are forwarded to, e.g. ap@aurora.ca.
+   */
+  mailboxAddress?: string | null;
+  senderPolicy: 'internal_only' | 'public';
+  /**
+   * Email domains counted as staff, e.g. aurora.ca. Subdomains of a listed domain also count.
+   */
+  internalDomains?:
+    | {
+        domain: string;
+        id?: string | null;
+      }[]
+    | null;
+  /**
+   * How sure the reading has to be before a value is filled in. Below this the field is left blank. 0.8 means 80%.
+   */
+  confidenceThreshold: number;
+  /**
+   * How far the amounts on an invoice may disagree before it is flagged for review, in dollars.
+   */
+  amountTolerance: number;
+  /**
+   * Set automatically when the mailbox connection is started.
+   */
+  subscriptionId?: string | null;
+  /**
+   * The mailbox connection is renewed automatically before this time.
+   */
+  subscriptionExpiresAt?: string | null;
+  /**
+   * Last time the mailbox told us something had arrived.
+   */
+  lastNotificationAt?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * What counts as the same invoice arriving twice, and what happens then.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "duplicate-rules".
+ */
+export interface DuplicateRule {
+  id: number;
+  /**
+   * Fields that together identify an invoice. Default is vendor plus invoice number.
+   */
+  keyFields: {
+    field:
+      | 'invoiceNumber'
+      | 'vendorName'
+      | 'grandTotal'
+      | 'poNumber'
+      | 'subtotal'
+      | 'totalTax'
+      | 'invoiceDate'
+      | 'dueDate'
+      | 'fiscalYear';
+    id?: string | null;
+  }[];
+  action: 'flag' | 'block' | 'allow';
+  /**
+   * Do not compare against invoices that were cancelled.
+   */
+  ignoreCancelled?: boolean | null;
+  /**
+   * Treat differences in capitals and spacing as the same text.
+   */
+  caseInsensitive?: boolean | null;
+  /**
+   * Also check invoices somebody types in, not only emailed ones.
+   */
+  appliesToManualEntry?: boolean | null;
+  /**
+   * Only compare against invoices from the last N days. Leave blank to compare against all of them.
+   */
+  windowDays?: number | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * Reason dropdowns shown when an invoice is reassigned, rejected or cancelled.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "action-reasons".
+ */
+export interface ActionReason {
+  id: number;
+  /**
+   * Which action this row belongs to.
+   */
+  scope: 'reassign' | 'reject' | 'cancel';
+  kind: 'reason' | 'policy';
+  /**
+   * What the clerk reads in the dropdown. Required on a reason option.
+   */
+  label?: string | null;
+  order?: number | null;
+  active?: boolean | null;
+  /**
+   * The built-in Other option. Reveals a free-text line and cannot be deleted.
+   */
+  isOther?: boolean | null;
+  /**
+   * Whether a reason must be given before this action can be completed.
+   */
+  reasonRequired?: boolean | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "saved-views".
+ */
+export interface SavedView {
+  id: number;
+  name: string;
+  /**
+   * The person the view belongs to. Never changes, including for published views.
+   */
+  owner: number | User;
+  /**
+   * Stage systemId the view applies to, or 'all'.
+   */
+  stage: string;
+  /**
+   * Visible column ids, in display order.
+   */
+  columns?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  /**
+   * Full column order including hidden columns.
+   */
+  columnOrder?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  /**
+   * ColumnFilterSpec[] — AND across columns, OR within a column.
+   */
+  filters?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  /**
+   * [{ id, desc }] in priority order.
+   */
+  sort?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  /**
+   * Opens automatically for the owner. At most one per owner.
+   */
+  isDefault?: boolean | null;
+  /**
+   * Roles that may open this view read-only. Set by an administrator.
+   */
+  publishedToRoles?: (number | Role)[] | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * Maintained from Settings → Coding Restrictions.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "department-segment-map".
+ */
+export interface DepartmentSegmentMap {
+  id: number;
+  /**
+   * Who codes and approves invoices against these sub-departments.
+   */
+  department: number | Department;
+  /**
+   * First sub-department number in the range, written exactly as it appears in the GL code (for example 0400).
+   */
+  fromValue: string;
+  /**
+   * Last sub-department number in the range. Leave blank when the row covers a single sub-department — a single value always beats a range that contains it.
+   */
+  toValue?: string | null;
+  /**
+   * Optional reminder of what this covers, for example "Swim Program".
+   */
+  note?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * Which reading from a scanned invoice fills which field in this app.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "ocr-field-map".
+ */
+export interface OcrFieldMap {
+  id: number;
+  /**
+   * Key of the field in this app that the value lands in.
+   */
+  appField: string;
+  sourceField:
+    | 'InvoiceId'
+    | 'VendorName'
+    | 'VendorAddress'
+    | 'VendorTaxId'
+    | 'CustomerName'
+    | 'CustomerId'
+    | 'InvoiceDate'
+    | 'DueDate'
+    | 'PurchaseOrder'
+    | 'SubTotal'
+    | 'TotalTax'
+    | 'InvoiceTotal'
+    | 'AmountDue'
+    | 'PreviousUnpaidBalance'
+    | 'ServiceStartDate'
+    | 'ServiceEndDate'
+    | 'PaymentTerm';
+  enabled?: boolean | null;
+  order?: number | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * People and groups who should not get an automatic reply when they email an invoice in.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "email-suppression".
+ */
+export interface EmailSuppression {
+  id: number;
+  /**
+   * An email address, a whole domain, or the name of a directory group.
+   */
+  value: string;
+  kind: 'address' | 'domain' | 'group';
+  /**
+   * Why this one is on the list.
+   */
+  note?: string | null;
+  addedBy?: (number | null) | User;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * Emails the mailbox turned away, waiting for someone to look at them.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "intake-quarantine".
+ */
+export interface IntakeQuarantine {
+  id: number;
+  sender: string;
+  subject?: string | null;
+  receivedAt: string;
+  reason: 'external_sender' | 'unreadable_sender' | 'no_internal_domains_configured';
+  /**
+   * Mailbox reference for the original message, used to fetch it again on release.
+   */
+  messageId: string;
+  internetMessageId?: string | null;
+  attachmentCount?: number | null;
+  released?: boolean | null;
+  releasedAt?: string | null;
+  releasedBy?: (number | null) | User;
+  /**
+   * Why the last attempt to release this message did not work.
+   */
+  releaseError?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * What arrived by email, and what was read off it.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "intake-events".
+ */
+export interface IntakeEvent {
+  id: number;
+  /**
+   * Identifies one message and one file within it, so a repeated delivery is not processed twice.
+   */
+  messageKey: string;
+  messageId: string;
+  internetMessageId?: string | null;
+  sender?: string | null;
+  subject?: string | null;
+  receivedAt: string;
+  status: 'created' | 'quarantined' | 'blocked_duplicate' | 'skipped' | 'failed';
+  invoice?: (number | null) | Invoice;
+  attachmentName?: string | null;
+  ocrStatus?: ('extracted' | 'failed' | 'skipped') | null;
+  /**
+   * Exactly what the reading produced, before anyone edited it.
+   */
+  extraction?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  /**
+   * The values that were actually put on the invoice.
+   */
+  appliedValues?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  /**
+   * The setting in force when this invoice was read.
+   */
+  confidenceThreshold?: number | null;
+  /**
+   * Plain-language explanation of why this one did not go through.
+   */
+  failureReason?: string | null;
+  /**
+   * The confirmation reply composed for the sender. Empty when the sender is on the suppression list.
+   */
+  receipt?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -1010,6 +1536,54 @@ export interface PayloadLockedDocument {
         value: number | EmailTrigger;
       } | null)
     | ({
+        relationTo: 'email-settings';
+        value: number | EmailSetting;
+      } | null)
+    | ({
+        relationTo: 'coding-rules';
+        value: number | CodingRule;
+      } | null)
+    | ({
+        relationTo: 'gl-format';
+        value: number | GlFormat;
+      } | null)
+    | ({
+        relationTo: 'intake-settings';
+        value: number | IntakeSetting;
+      } | null)
+    | ({
+        relationTo: 'duplicate-rules';
+        value: number | DuplicateRule;
+      } | null)
+    | ({
+        relationTo: 'action-reasons';
+        value: number | ActionReason;
+      } | null)
+    | ({
+        relationTo: 'saved-views';
+        value: number | SavedView;
+      } | null)
+    | ({
+        relationTo: 'department-segment-map';
+        value: number | DepartmentSegmentMap;
+      } | null)
+    | ({
+        relationTo: 'ocr-field-map';
+        value: number | OcrFieldMap;
+      } | null)
+    | ({
+        relationTo: 'email-suppression';
+        value: number | EmailSuppression;
+      } | null)
+    | ({
+        relationTo: 'intake-quarantine';
+        value: number | IntakeQuarantine;
+      } | null)
+    | ({
+        relationTo: 'intake-events';
+        value: number | IntakeEvent;
+      } | null)
+    | ({
         relationTo: 'forms';
         value: number | Form;
       } | null)
@@ -1094,6 +1668,7 @@ export interface DepartmentsSelect<T extends boolean = true> {
   name?: T;
   code?: T;
   head?: T;
+  reviewer?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -1115,6 +1690,7 @@ export interface RolesSelect<T extends boolean = true> {
       };
   confidential?: T;
   bypassCodingRestrictions?: T;
+  allowSelfReassign?: T;
   isSystem?: T;
   updatedAt?: T;
   createdAt?: T;
@@ -1145,13 +1721,13 @@ export interface VendorsSelect<T extends boolean = true> {
 export interface GlAccountsSelect<T extends boolean = true> {
   code?: T;
   description?: T;
+  active?: T;
   segments?:
     | T
     | {
         value?: T;
         id?: T;
       };
-  active?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -1317,11 +1893,23 @@ export interface InvoicesSelect<T extends boolean = true> {
         ocrFailed?: T;
         vendorSetupRequired?: T;
         possibleDuplicate?: T;
+        amountMismatch?: T;
         archiveFailed?: T;
         archiveAttempts?: T;
       };
   createdVia?: T;
   ocrConfidence?: T;
+  intake?:
+    | T
+    | {
+        sender?: T;
+        subject?: T;
+        receivedAt?: T;
+        messageId?: T;
+        internetMessageId?: T;
+        attachmentName?: T;
+      };
+  ocrFields?: T;
   customFields?: T;
   documents?: T;
   softDeleted?: T;
@@ -1466,6 +2054,199 @@ export interface EmailTriggersSelect<T extends boolean = true> {
         id?: T;
       };
   enabled?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "email-settings_select".
+ */
+export interface EmailSettingsSelect<T extends boolean = true> {
+  fromName?: T;
+  fromEmail?: T;
+  replyTo?: T;
+  headerHtml?: T;
+  footerHtml?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "coding-rules_select".
+ */
+export interface CodingRulesSelect<T extends boolean = true> {
+  matchTarget?: T;
+  onMismatch?: T;
+  message?: T;
+  tolerance?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "gl-format_select".
+ */
+export interface GlFormatSelect<T extends boolean = true> {
+  mask?: T;
+  segmentLabels?:
+    | T
+    | {
+        label?: T;
+        id?: T;
+      };
+  departmentSegment?: T;
+  catchAllDepartment?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "intake-settings_select".
+ */
+export interface IntakeSettingsSelect<T extends boolean = true> {
+  enabled?: T;
+  mailboxAddress?: T;
+  senderPolicy?: T;
+  internalDomains?:
+    | T
+    | {
+        domain?: T;
+        id?: T;
+      };
+  confidenceThreshold?: T;
+  amountTolerance?: T;
+  subscriptionId?: T;
+  subscriptionExpiresAt?: T;
+  lastNotificationAt?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "duplicate-rules_select".
+ */
+export interface DuplicateRulesSelect<T extends boolean = true> {
+  keyFields?:
+    | T
+    | {
+        field?: T;
+        id?: T;
+      };
+  action?: T;
+  ignoreCancelled?: T;
+  caseInsensitive?: T;
+  appliesToManualEntry?: T;
+  windowDays?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "action-reasons_select".
+ */
+export interface ActionReasonsSelect<T extends boolean = true> {
+  scope?: T;
+  kind?: T;
+  label?: T;
+  order?: T;
+  active?: T;
+  isOther?: T;
+  reasonRequired?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "saved-views_select".
+ */
+export interface SavedViewsSelect<T extends boolean = true> {
+  name?: T;
+  owner?: T;
+  stage?: T;
+  columns?: T;
+  columnOrder?: T;
+  filters?: T;
+  sort?: T;
+  isDefault?: T;
+  publishedToRoles?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "department-segment-map_select".
+ */
+export interface DepartmentSegmentMapSelect<T extends boolean = true> {
+  department?: T;
+  fromValue?: T;
+  toValue?: T;
+  note?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "ocr-field-map_select".
+ */
+export interface OcrFieldMapSelect<T extends boolean = true> {
+  appField?: T;
+  sourceField?: T;
+  enabled?: T;
+  order?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "email-suppression_select".
+ */
+export interface EmailSuppressionSelect<T extends boolean = true> {
+  value?: T;
+  kind?: T;
+  note?: T;
+  addedBy?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "intake-quarantine_select".
+ */
+export interface IntakeQuarantineSelect<T extends boolean = true> {
+  sender?: T;
+  subject?: T;
+  receivedAt?: T;
+  reason?: T;
+  messageId?: T;
+  internetMessageId?: T;
+  attachmentCount?: T;
+  released?: T;
+  releasedAt?: T;
+  releasedBy?: T;
+  releaseError?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "intake-events_select".
+ */
+export interface IntakeEventsSelect<T extends boolean = true> {
+  messageKey?: T;
+  messageId?: T;
+  internetMessageId?: T;
+  sender?: T;
+  subject?: T;
+  receivedAt?: T;
+  status?: T;
+  invoice?: T;
+  attachmentName?: T;
+  ocrStatus?: T;
+  extraction?: T;
+  appliedValues?: T;
+  confidenceThreshold?: T;
+  failureReason?: T;
+  receipt?: T;
   updatedAt?: T;
   createdAt?: T;
 }

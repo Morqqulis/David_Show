@@ -16,6 +16,10 @@ export type InvoiceRow = {
   vendor?: { id?: string | number; name?: string }
   invoiceDate?: string
   dueDate?: string
+  poNumber?: string
+  fiscalYear?: string
+  subtotal?: number
+  totalTax?: number
   grandTotal: number
   currentStage?: { systemId: StageId; label?: string }
   departments?: Array<{ id: string | number; code: string; name: string }>
@@ -28,6 +32,7 @@ export type InvoiceRow = {
     possibleDuplicate?: boolean
     archiveFailed?: boolean
     vendorSetupRequired?: boolean
+    amountMismatch?: boolean
   }
   customFields?: Record<string, unknown>
   lines?: InvoiceLineRow[]

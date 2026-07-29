@@ -18,6 +18,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { useQueueCounts, type QueueCountsPayload } from '@/hooks/use-ap-queries'
 import { useRequestsTab, type RequestsTab } from '@/stores/use-requests-tab'
 import { useEffectiveCounts } from '@/stores/use-effective-counts'
+import { isRequestsListPath, requestsListHref } from '@/lib/requests-routes'
 import type { StageId } from '@/backend/lib/stage-ids'
 
 function iconForStage(systemId: StageId): React.ComponentType<{ className?: string }> {
@@ -62,11 +63,19 @@ export function SidebarNav({ initial }: { initial: QueueCountsPayload }) {
   // the next poll surfaces the new label without a manual refresh.
   const stages = data?.stages ?? initial.stages
 
-  const onRequestsPage = pathname === '/requests' || pathname?.startsWith('/requests/') || false
+  // Only the LIST route counts. An open invoice (`/requests/[id]`, and its
+  // `/coding` child) is a different page: the queue buttons there must
+  // navigate away, and no queue may claim the active highlight while the user
+  // is sitting on a detail route.
+  const onRequestsPage = isRequestsListPath(pathname)
 
   function activateTab(target: RequestsTab) {
     setTab(target)
-    if (!onRequestsPage) router.push('/requests')
+    // On the list itself the screen reacts to the store and rewrites the
+    // address for us, keeping the user's columns and filters. Coming from
+    // anywhere else the queue must be in the address, or the server answers
+    // "all" and the click is silently discarded.
+    if (!onRequestsPage) router.push(requestsListHref(target))
   }
 
   const groups: { title: string; items: Item[] }[] = [
@@ -112,17 +121,20 @@ export function SidebarNav({ initial }: { initial: QueueCountsPayload }) {
   ]
 
   return (
-    <nav className="flex h-full flex-col gap-1 px-3 py-4 text-sm">
-      <div className="flex items-center gap-2 px-2 pb-4">
+    <nav className="flex h-full flex-col text-sm">
+      {/* Brand bar: 56px like the topbar, on the brand tint, so the two
+          horizontal dividers meet exactly across the top of the app. */}
+      <div className="flex h-14 shrink-0 items-center gap-2.5 border-b border-sidebar-border bg-sidebar-accent px-4">
         <div className="grid h-9 w-9 place-items-center rounded-lg bg-primary text-primary-foreground font-bold">
           A
         </div>
-        <div className="flex flex-col leading-tight">
-          <span className="font-semibold">AuroraAP</span>
-          <span className="text-[11px] text-muted-foreground">City of Aurora · AP</span>
+        <div className="flex min-w-0 flex-col leading-tight">
+          <span className="truncate font-semibold">AuroraAP</span>
+          <span className="truncate text-[11px] text-muted-foreground">City of Aurora · AP</span>
         </div>
       </div>
 
+      <div className="flex flex-1 flex-col gap-1 overflow-y-auto px-2.5 py-2">
       {groups.map((group, gi) => (
         <div key={gi} className="flex flex-col gap-0.5">
           {group.title ? (
@@ -176,8 +188,9 @@ export function SidebarNav({ initial }: { initial: QueueCountsPayload }) {
           })}
         </div>
       ))}
+      </div>
 
-      <div className="mt-auto flex items-center gap-2 rounded-md border border-border px-2.5 py-2">
+      <div className="mx-3 mb-3 flex items-center gap-2 rounded-md border border-sidebar-border px-2.5 py-2">
         <Avatar size="sm">
           <AvatarFallback>DY</AvatarFallback>
         </Avatar>

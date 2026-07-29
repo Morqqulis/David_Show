@@ -39,13 +39,20 @@ export const REQUIRED_STAGE_IDS: StageId[] = [
   'completed',
 ]
 
-export const STAGE_TONE: Record<StageId, 'slate' | 'blue' | 'violet' | 'amber' | 'green' | 'red'> = {
-  to_be_assigned: 'slate',
-  to_be_coded: 'blue',
-  conditional_approvals: 'violet',
-  ap_review: 'blue',
-  ready_for_processing: 'amber',
-  processed: 'amber',
-  treasurer_review: 'violet',
-  completed: 'green',
+// A per-stage colour name used to live here. Status pills are now a single-hue
+// ramp derived from the brand colour by stage position, so nothing chooses a
+// hue per stage any more — see components/app/stage-badge.tsx.
+
+/**
+ * True once an invoice has reached the coding stage, and at every stage after.
+ *
+ * This is what the coding-completeness gate keys on. It deliberately asks about
+ * the STAGE and not about whether the invoice currently has coding lines:
+ * testing the line count left a hole where deleting every line at a later stage
+ * read as "nothing to check", and a wholly uncoded invoice sailed through.
+ */
+export function isAtOrPastCoding(systemId: StageId | undefined | null): boolean {
+  if (!systemId) return false
+  const at = STAGE_ORDER.indexOf(systemId)
+  return at >= STAGE_ORDER.indexOf('to_be_coded')
 }

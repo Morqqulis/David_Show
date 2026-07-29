@@ -21,7 +21,7 @@ export const INVOICE_FIXTURES: InvoiceSeed[] = [
     assigneeEmails: [],
     ocrConfidence: 0.94,
     createdVia: 'email',
-    lines: [{ glCode: '01-1900-ADM-5210', amount: 246.5, taxCode: 'HST-ON-PSB' }],
+    lines: [{ glCode: '01-1900-1900-5210', amount: 246.5, taxCode: 'HST-ON-PSB' }],
   },
   {
     invoiceNumber: 'INV-77124',
@@ -33,7 +33,7 @@ export const INVOICE_FIXTURES: InvoiceSeed[] = [
     assigneeEmails: [],
     flags: { noAttachment: true },
     createdVia: 'email',
-    lines: [{ glCode: '02-2100-UTIL-5710', amount: 8420.32, taxCode: 'HST-ON-PSB' }],
+    lines: [{ glCode: '02-2100-2100-5710', amount: 8420.32, taxCode: 'HST-ON-PSB' }],
   },
   {
     invoiceNumber: 'INV-77125',
@@ -45,7 +45,7 @@ export const INVOICE_FIXTURES: InvoiceSeed[] = [
     assigneeEmails: [],
     flags: { ocrFailed: true },
     createdVia: 'email',
-    lines: [{ glCode: '01-1200-IT-5120', amount: 1200, taxCode: 'HST-ON-PSB' }],
+    lines: [{ glCode: '01-1200-1200-5120', amount: 1200, taxCode: 'HST-ON-PSB' }],
   },
   {
     invoiceNumber: 'INV-77126',
@@ -57,7 +57,7 @@ export const INVOICE_FIXTURES: InvoiceSeed[] = [
     assigneeEmails: [],
     flags: { possibleDuplicate: true },
     createdVia: 'email',
-    lines: [{ glCode: '01-1100-PW-5610', amount: 4500, taxCode: 'HST-ON-PSB' }],
+    lines: [{ glCode: '01-1100-1100-5610', amount: 4500, taxCode: 'HST-ON-PSB' }],
   },
 
   // ── To Be Coded (3) — assigned to department reviewers ──
@@ -72,8 +72,8 @@ export const INVOICE_FIXTURES: InvoiceSeed[] = [
     assigneeEmails: ['jordan.lee@aurora.ca'],
     priority: 'High',
     lines: [
-      { glCode: '01-1100-PW-5410', costCenterCode: 'CC-PW02', amount: 3200, taxCode: 'HST-ON-PSB', description: 'Plow truck repair' },
-      { glCode: '01-1100-PW-5210', costCenterCode: 'CC-PW01', amount: 1100, taxCode: 'HST-ON-PSB', description: 'Replacement parts' },
+      { glCode: '01-1100-1100-5410', costCenterCode: 'CC-PW02', amount: 3200, taxCode: 'HST-ON-PSB', description: 'Plow truck repair' },
+      { glCode: '01-1100-1100-5210', costCenterCode: 'CC-PW01', amount: 1100, taxCode: 'HST-ON-PSB', description: 'Replacement parts' },
     ],
     comments: [
       { authorEmail: 'sarah.chen@aurora.ca', body: 'Assigning to PW — Jordan please code by Friday.' },
@@ -89,7 +89,7 @@ export const INVOICE_FIXTURES: InvoiceSeed[] = [
     assigneeEmails: ['priya.kumar@aurora.ca'],
     priority: 'Normal',
     lines: [
-      { glCode: '01-1200-IT-5110', costCenterCode: 'CC-IT02', amount: 7200, taxCode: 'HST-ON-PSB', description: 'M365 E5 quarterly license fee' },
+      { glCode: '01-1200-1200-5110', costCenterCode: 'CC-IT02', amount: 7200, taxCode: 'HST-ON-PSB', description: 'M365 E5 quarterly license fee' },
     ],
   },
   {
@@ -101,7 +101,7 @@ export const INVOICE_FIXTURES: InvoiceSeed[] = [
     departmentCodes: ['LIB'],
     assigneeEmails: ['aisha.mohamed@aurora.ca'],
     lines: [
-      { glCode: '01-1400-LIB-5410', costCenterCode: 'CC-LIB01', amount: 2840, taxCode: 'EXEMPT', description: 'New release books — May' },
+      { glCode: '01-1400-1400-5410', costCenterCode: 'CC-LIB01', amount: 2840, taxCode: 'EXEMPT', description: 'New release books — May' },
     ],
   },
 
@@ -117,7 +117,7 @@ export const INVOICE_FIXTURES: InvoiceSeed[] = [
     assigneeEmails: ['hannah.wright@aurora.ca'],
     priority: 'High',
     lines: [
-      { glCode: '01-1100-PW-5610', costCenterCode: 'CC-PW01', amount: 12500, taxCode: 'HST-ON-PSB', description: 'Hwy 404 salt storage' },
+      { glCode: '01-1100-1100-5610', costCenterCode: 'CC-PW01', amount: 12500, taxCode: 'HST-ON-PSB', description: 'Hwy 404 salt storage' },
     ],
   },
   {
@@ -130,7 +130,7 @@ export const INVOICE_FIXTURES: InvoiceSeed[] = [
     assigneeEmails: ['hannah.wright@aurora.ca'],
     priority: 'Normal',
     lines: [
-      { glCode: '01-1200-IT-5120', costCenterCode: 'CC-IT02', amount: 6400, taxCode: 'HST-ON-PSB' },
+      { glCode: '01-1200-1200-5120', costCenterCode: 'CC-IT02', amount: 6400, taxCode: 'HST-ON-PSB' },
     ],
   },
 
@@ -144,7 +144,7 @@ export const INVOICE_FIXTURES: InvoiceSeed[] = [
     departmentCodes: ['PR'],
     assigneeEmails: ['marcus.patel@aurora.ca'],
     lines: [
-      { glCode: '01-1300-PR-5510', costCenterCode: 'CC-PR01', amount: 4280, taxCode: 'HST-ON-PSB' },
+      { glCode: '01-1300-1300-5510', costCenterCode: 'CC-PR01', amount: 4280, taxCode: 'HST-ON-PSB' },
     ],
   },
   {
@@ -157,7 +157,7 @@ export const INVOICE_FIXTURES: InvoiceSeed[] = [
     assigneeEmails: ['marcus.patel@aurora.ca'],
     priority: 'High',
     lines: [
-      { glCode: '01-1500-FIRE-5210', costCenterCode: 'CC-FIRE01', amount: 9800, taxCode: 'HST-ON-PSB', description: 'SCBA upgrade kit' },
+      { glCode: '01-1500-1500-5210', costCenterCode: 'CC-FIRE01', amount: 9800, taxCode: 'HST-ON-PSB', description: 'SCBA upgrade kit' },
     ],
   },
   {
@@ -171,7 +171,7 @@ export const INVOICE_FIXTURES: InvoiceSeed[] = [
     assigneeEmails: ['sarah.chen@aurora.ca'],
     priority: 'Urgent',
     lines: [
-      { glCode: '01-1900-ADM-5110', amount: 14500, taxCode: 'HST-ON-PSB', description: 'M&A advisory — confidential' },
+      { glCode: '01-1900-1900-5110', amount: 14500, taxCode: 'HST-ON-PSB', description: 'M&A advisory — confidential' },
     ],
     comments: [
       { authorEmail: 'sarah.chen@aurora.ca', body: '@robert.klein please prep treasurer review for this one.' },
@@ -188,7 +188,7 @@ export const INVOICE_FIXTURES: InvoiceSeed[] = [
     departmentCodes: ['ADM'],
     assigneeEmails: ['lena.brooks@aurora.ca'],
     batchNumber: 'BATCH-2026-W21',
-    lines: [{ glCode: '01-1900-ADM-5210', amount: 1280, taxCode: 'HST-ON-PSB' }],
+    lines: [{ glCode: '01-1900-1900-5210', amount: 1280, taxCode: 'HST-ON-PSB' }],
   },
   {
     invoiceNumber: 'INV-77001',
@@ -199,7 +199,7 @@ export const INVOICE_FIXTURES: InvoiceSeed[] = [
     departmentCodes: ['ADM'],
     assigneeEmails: ['lena.brooks@aurora.ca'],
     batchNumber: 'BATCH-2026-W21',
-    lines: [{ glCode: '01-1900-ADM-5210', amount: 3450, taxCode: 'HST-ON-PSB' }],
+    lines: [{ glCode: '01-1900-1900-5210', amount: 3450, taxCode: 'HST-ON-PSB' }],
   },
   {
     invoiceNumber: 'INV-77002',
@@ -210,7 +210,7 @@ export const INVOICE_FIXTURES: InvoiceSeed[] = [
     departmentCodes: ['PW'],
     assigneeEmails: ['marcus.patel@aurora.ca'],
     batchNumber: 'BATCH-2026-W21',
-    lines: [{ glCode: '01-1100-PW-5410', amount: 2100, taxCode: 'HST-ON-PSB' }],
+    lines: [{ glCode: '01-1100-1100-5410', amount: 2100, taxCode: 'HST-ON-PSB' }],
   },
 
   // ── Processed (2) — imported into ERP, awaiting AP confirmation ──
@@ -223,7 +223,7 @@ export const INVOICE_FIXTURES: InvoiceSeed[] = [
     departmentCodes: ['PW'],
     assigneeEmails: ['marcus.patel@aurora.ca'],
     batchNumber: 'BATCH-2026-W20',
-    lines: [{ glCode: '03-3100-CAPEX-5910', amount: 38500, taxCode: 'HST-ON-PSB', description: 'Two new pickup trucks' }],
+    lines: [{ glCode: '03-3100-3100-5910', amount: 38500, taxCode: 'HST-ON-PSB', description: 'Two new pickup trucks' }],
   },
   {
     invoiceNumber: 'INV-76901',
@@ -234,7 +234,7 @@ export const INVOICE_FIXTURES: InvoiceSeed[] = [
     departmentCodes: ['IT'],
     assigneeEmails: ['lena.brooks@aurora.ca'],
     batchNumber: 'BATCH-2026-W20',
-    lines: [{ glCode: '01-1200-IT-5310', amount: 5600, taxCode: 'HST-ON-PSB', description: 'Workstation refresh — 8 units' }],
+    lines: [{ glCode: '01-1200-1200-5310', amount: 5600, taxCode: 'HST-ON-PSB', description: 'Workstation refresh — 8 units' }],
   },
 
   // ── Treasurer Review (3) — spot-check phase ──
@@ -248,7 +248,7 @@ export const INVOICE_FIXTURES: InvoiceSeed[] = [
     assigneeEmails: ['robert.klein@aurora.ca'],
     batchNumber: 'BATCH-2026-W19',
     verified: true,
-    lines: [{ glCode: '02-2100-UTIL-5710', amount: 6840, taxCode: 'HST-ON-PSB' }],
+    lines: [{ glCode: '02-2100-2100-5710', amount: 6840, taxCode: 'HST-ON-PSB' }],
   },
   {
     invoiceNumber: 'INV-76801',
@@ -259,7 +259,7 @@ export const INVOICE_FIXTURES: InvoiceSeed[] = [
     departmentCodes: ['IT'],
     assigneeEmails: ['robert.klein@aurora.ca'],
     batchNumber: 'BATCH-2026-W19',
-    lines: [{ glCode: '01-1200-IT-5110', amount: 4800, taxCode: 'HST-ON-PSB' }],
+    lines: [{ glCode: '01-1200-1200-5110', amount: 4800, taxCode: 'HST-ON-PSB' }],
   },
   {
     invoiceNumber: 'INV-76802',
@@ -271,7 +271,7 @@ export const INVOICE_FIXTURES: InvoiceSeed[] = [
     assigneeEmails: ['robert.klein@aurora.ca'],
     batchNumber: 'BATCH-2026-W19',
     verified: true,
-    lines: [{ glCode: '01-1300-PR-5510', amount: 2150, taxCode: 'HST-ON-PSB' }],
+    lines: [{ glCode: '01-1300-1300-5510', amount: 2150, taxCode: 'HST-ON-PSB' }],
   },
 
   // ── Completed (4) — including one with archive failure for the Alerts demo ──
@@ -284,7 +284,7 @@ export const INVOICE_FIXTURES: InvoiceSeed[] = [
     departmentCodes: ['PW'],
     assigneeEmails: [],
     batchNumber: 'BATCH-2026-W19',
-    lines: [{ glCode: '01-1100-PW-5410', amount: 4280, taxCode: 'HST-ON-PSB' }],
+    lines: [{ glCode: '01-1100-1100-5410', amount: 4280, taxCode: 'HST-ON-PSB' }],
   },
   {
     invoiceNumber: 'INV-76701',
@@ -295,7 +295,7 @@ export const INVOICE_FIXTURES: InvoiceSeed[] = [
     departmentCodes: ['ADM'],
     assigneeEmails: [],
     batchNumber: 'BATCH-2026-W19',
-    lines: [{ glCode: '01-1900-ADM-5210', amount: 540, taxCode: 'HST-ON-PSB' }],
+    lines: [{ glCode: '01-1900-1900-5210', amount: 540, taxCode: 'HST-ON-PSB' }],
   },
   {
     invoiceNumber: 'INV-76702',
@@ -306,7 +306,7 @@ export const INVOICE_FIXTURES: InvoiceSeed[] = [
     departmentCodes: ['LIB'],
     assigneeEmails: [],
     batchNumber: 'BATCH-2026-W19',
-    lines: [{ glCode: '01-1400-LIB-5210', amount: 980, taxCode: 'EXEMPT' }],
+    lines: [{ glCode: '01-1400-1400-5210', amount: 980, taxCode: 'EXEMPT' }],
     flags: { archiveFailed: true },
   },
   {
@@ -318,6 +318,6 @@ export const INVOICE_FIXTURES: InvoiceSeed[] = [
     departmentCodes: ['FIRE'],
     assigneeEmails: [],
     batchNumber: 'BATCH-2026-W19',
-    lines: [{ glCode: '01-1500-FIRE-5310', amount: 1720, taxCode: 'HST-ON-PSB' }],
+    lines: [{ glCode: '01-1500-1500-5310', amount: 1720, taxCode: 'HST-ON-PSB' }],
   },
 ]

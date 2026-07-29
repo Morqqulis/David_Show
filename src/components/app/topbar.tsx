@@ -13,7 +13,9 @@ import { RefreshButton } from './refresh-button'
 
 export function Topbar({ crumbs }: { crumbs?: { label: string; href?: string }[] }) {
   return (
-    <header className="flex h-14 items-center gap-3 border-b border-border bg-background/80 px-6 backdrop-blur">
+    // 56px tall and white-over-wash, matching the sidebar's brand bar so the
+    // two dividers line up across the top of every screen.
+    <header className="flex h-14 items-center gap-3 border-b border-border bg-card/80 px-7 backdrop-blur">
       {crumbs && crumbs.length > 0 ? (
         <Breadcrumb>
           <BreadcrumbList>

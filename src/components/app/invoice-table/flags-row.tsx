@@ -14,6 +14,8 @@ function collectFlags(row: InvoiceRow): FlagItem[] {
     items.push({ icon: <AlertCircle className="h-3 w-3" />, label: 'Possible duplicate', tone: 'amber' })
   if (flags.vendorSetupRequired)
     items.push({ icon: <AlertCircle className="h-3 w-3" />, label: 'Vendor setup required', tone: 'amber' })
+  if (flags.amountMismatch)
+    items.push({ icon: <AlertCircle className="h-3 w-3" />, label: 'Amounts do not add up', tone: 'amber' })
   return items
 }
 

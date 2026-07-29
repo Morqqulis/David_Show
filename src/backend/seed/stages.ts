@@ -1,5 +1,5 @@
 import type { Payload } from 'payload'
-import { REQUIRED_STAGE_IDS, STAGE_LABELS, STAGE_ORDER, STAGE_TONE } from '../lib/stage-ids'
+import { REQUIRED_STAGE_IDS, STAGE_LABELS, STAGE_ORDER } from '../lib/stage-ids'
 
 export async function seedStages(payload: Payload) {
   const docs = []
@@ -11,7 +11,6 @@ export async function seedStages(payload: Payload) {
         systemId,
         label: STAGE_LABELS[systemId],
         order: i + 1,
-        tone: STAGE_TONE[systemId] as never,
         active: true,
         required: REQUIRED_STAGE_IDS.includes(systemId),
         bulkAssign: systemId === 'to_be_assigned' || systemId === 'ap_review',

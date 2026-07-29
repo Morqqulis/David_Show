@@ -1,7 +1,7 @@
 'use client'
 
 import type { Table } from '@tanstack/react-table'
-import { Settings2 } from 'lucide-react'
+import { ChevronDown, ChevronUp, Settings2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
@@ -37,7 +37,20 @@ export function DataTableViewOptions<TData>({ table }: { table: Table<TData> }) 
   // toggling a checkbox hides the column but the checkmark icon stays.
   'use no memo'
   const visibility = table.getState().columnVisibility
+  const order = table.getState().columnOrder
   const columns = table.getAllLeafColumns().filter((c) => c.getCanHide())
+  // Reordering is only offered when the table is actually tracking an order.
+  // The settings tables leave it empty and want the simple list.
+  const canReorder = order.length > 0
+
+  function move(columnId: string, direction: -1 | 1) {
+    const from = order.indexOf(columnId)
+    const to = from + direction
+    if (from < 0 || to < 0 || to >= order.length) return
+    const next = [...order]
+    next.splice(to, 0, next.splice(from, 1)[0])
+    table.setColumnOrder(next)
+  }
 
   return (
     <DropdownMenu>
@@ -47,27 +60,53 @@ export function DataTableViewOptions<TData>({ table }: { table: Table<TData> }) 
           View
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-[220px] p-1">
-        <DropdownMenuLabel>Toggle columns</DropdownMenuLabel>
+      <DropdownMenuContent align="end" className="max-h-[420px] w-[260px] overflow-y-auto p-1">
+        <DropdownMenuLabel>Columns</DropdownMenuLabel>
         <DropdownMenuSeparator />
         {columns.map((column) => {
           const meta = column.columnDef.meta as { label?: string } | undefined
           const isVisible = visibility[column.id] !== false
           const id = `view-toggle-${column.id}`
           return (
-            <Label
+            <div
               key={column.id}
-              htmlFor={id}
-              className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm font-normal hover:bg-accent hover:text-accent-foreground"
+              className="flex items-center gap-1 rounded-md pr-1 hover:bg-accent hover:text-accent-foreground"
               onClick={(e) => e.stopPropagation()}
             >
-              <Checkbox
-                id={id}
-                checked={isVisible}
-                onCheckedChange={(v) => column.toggleVisibility(!!v)}
-              />
-              <span className="flex-1">{meta?.label ?? column.id}</span>
-            </Label>
+              <Label
+                htmlFor={id}
+                className="flex flex-1 cursor-pointer items-center gap-2 px-2 py-1.5 text-sm font-normal"
+              >
+                <Checkbox
+                  id={id}
+                  checked={isVisible}
+                  onCheckedChange={(v) => column.toggleVisibility(!!v)}
+                />
+                <span className="flex-1 truncate">{meta?.label ?? column.id}</span>
+              </Label>
+              {canReorder ? (
+                <>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6"
+                    aria-label={`Move ${meta?.label ?? column.id} left`}
+                    onClick={() => move(column.id, -1)}
+                  >
+                    <ChevronUp className="h-3 w-3" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6"
+                    aria-label={`Move ${meta?.label ?? column.id} right`}
+                    onClick={() => move(column.id, 1)}
+                  >
+                    <ChevronDown className="h-3 w-3" />
+                  </Button>
+                </>
+              ) : null}
+            </div>
           )
         })}
       </DropdownMenuContent>

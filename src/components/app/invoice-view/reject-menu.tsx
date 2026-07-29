@@ -12,9 +12,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Textarea } from '@/components/ui/textarea'
 import { STAGE_ORDER, type StageId } from '@/backend/lib/stage-ids'
+import { useReasonList } from '@/hooks/use-ap-queries'
 import { useStageLabels } from '@/hooks/use-stage-labels'
+import { EMPTY_REASON, ReasonPicker, reasonSatisfied, type ReasonSelection } from './reassign-dialog'
 
 export function RejectMenu({
   currentStage,
@@ -22,27 +23,38 @@ export function RejectMenu({
   disabled,
 }: {
   currentStage: StageId
-  onReject: (target: StageId, reason: string) => void
+  onReject: (target: StageId, reasonId: string | null, otherText: string) => void
   disabled: boolean
 }) {
   const [open, setOpen] = useState(false)
   const [target, setTarget] = useState<StageId | ''>('')
-  const [reason, setReason] = useState('')
+  // The reason used to be a free-text box. It now comes from the same
+  // admin-managed list mechanism as Reassign and Cancel, each with its own list.
+  const [reason, setReason] = useState<ReasonSelection>(EMPTY_REASON)
+  const { data: reasons } = useReasonList('reject', open)
   const validTargets = STAGE_ORDER.slice(0, STAGE_ORDER.indexOf(currentStage))
   const labels = useStageLabels()
 
   if (validTargets.length === 0) return null
 
+  const ready = Boolean(target) && reasonSatisfied(reasons, reason)
+
   function submit() {
-    if (!target || !reason.trim()) return
-    onReject(target as StageId, reason.trim())
+    if (!ready || !target) return
+    onReject(target as StageId, reason.reasonId, reason.otherText)
     setOpen(false)
-    setReason('')
+    setReason(EMPTY_REASON)
     setTarget('')
   }
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next)
+        if (!next) setReason(EMPTY_REASON)
+      }}
+    >
       <PopoverTrigger asChild>
         <Button variant="outline" disabled={disabled}>
           <X className="h-4 w-4" />
@@ -66,26 +78,12 @@ export function RejectMenu({
               </SelectContent>
             </Select>
           </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="reject-reason">Reason (required)</Label>
-            <Textarea
-              id="reject-reason"
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              rows={3}
-              placeholder="Explain why this is being rejected…"
-            />
-          </div>
+          <ReasonPicker scope="reject" value={reason} onChange={setReason} id="reject-reason" />
           <div className="flex justify-end gap-2">
             <Button variant="ghost" size="sm" onClick={() => setOpen(false)}>
               Cancel
             </Button>
-            <Button
-              size="sm"
-              variant="destructive"
-              disabled={!target || !reason.trim()}
-              onClick={submit}
-            >
+            <Button size="sm" variant="destructive" disabled={!ready} onClick={submit}>
               Reject
             </Button>
           </div>

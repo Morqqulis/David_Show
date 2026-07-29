@@ -3,10 +3,22 @@
 import { revalidatePath } from 'next/cache'
 import { getPayload } from '../../lib/payload'
 import { getStageBySystemId, nextStageSystemId, recordAudit } from '../../lib/stage-engine'
-import { STAGE_ORDER, type StageId } from '../../lib/stage-ids'
+import { STAGE_ORDER, isAtOrPastCoding, type StageId } from '../../lib/stage-ids'
+import { resolveReasonText } from '../reason-actions'
+import { fetchCodingGate } from './coding'
 import { defaultActorId, evaluateAnyApprovalRule } from './_helpers'
 
-export async function approveInvoice(invoiceId: string | number, comment?: string) {
+export type ApproveOptions = {
+  comment?: string
+  /**
+   * Set when the user has seen and confirmed a Warn-level sum-match message.
+   * The server refuses a warned approval without it, so a warning can never be
+   * swallowed by a client that forgets to show it.
+   */
+  acknowledgedWarning?: boolean
+}
+
+export async function approveInvoice(invoiceId: string | number, options?: ApproveOptions) {
   const payload = await getPayload()
   const invoice = (await payload.findByID({ collection: 'invoices', id: invoiceId as never, depth: 2 })) as {
     currentStage?: { systemId: StageId }
@@ -16,6 +28,63 @@ export async function approveInvoice(invoiceId: string | number, comment?: strin
 
   const nextSys = nextStageSystemId(currentSysId)
   if (!nextSys) throw new Error('Already at terminal stage')
+
+  const comment = options?.comment
+  const actorId = await defaultActorId()
+
+  // Sum-match gate (Settings → Coding Table). Server-side is the authoritative
+  // check — the coding screen and the Approve button only mirror it.
+  //
+  // It runs on every forward transition from To Be Coded onwards, not only on
+  // the exit from To Be Coded, because later stages can edit fields and break
+  // coding that was previously complete.
+  //
+  // The test is the STAGE, deliberately not "does this invoice have lines".
+  // Keying it on line count left a hole: deleting every line at a later stage
+  // took the count to zero, which read as "nothing to check" and let a wholly
+  // uncoded invoice approve straight through. An invoice that has reached the
+  // coding stage owes a complete coding from then on, whatever its table
+  // currently holds.
+  //
+  // Reject and Cancel deliberately bypass all of this — an invoice that cannot
+  // be coded correctly still has to be able to go backwards.
+  const gate = await fetchCodingGate(invoiceId)
+  if (isAtOrPastCoding(currentSysId)) {
+    if (gate.verdict.behaviour === 'block') {
+      console.error('[coding-gate] approval blocked — invoice is not fully coded', {
+        invoiceId,
+        fromStage: currentSysId,
+        reasons: gate.verdict.reasons,
+        linesSum: gate.verdict.linesSum,
+        target: gate.verdict.target,
+      })
+      throw new Error(gate.verdict.message ?? 'Invoice needs to be fully coded.')
+    }
+    if (gate.verdict.behaviour === 'warn') {
+      if (!options?.acknowledgedWarning) {
+        console.error('[coding-gate] warned approval arrived without an acknowledgement', {
+          invoiceId,
+          fromStage: currentSysId,
+          reasons: gate.verdict.reasons,
+        })
+        throw new Error(
+          `${gate.verdict.message ?? 'Invoice needs to be fully coded.'} Confirm the warning on screen to continue.`,
+        )
+      }
+      await recordAudit({
+        payload,
+        invoiceId,
+        actorId,
+        action: 'updated',
+        context: {
+          event: 'sum_match_warning_acknowledged',
+          reasons: gate.verdict.reasons,
+          linesSum: gate.verdict.linesSum,
+          target: gate.verdict.target,
+        },
+      })
+    }
+  }
 
   // Conditional approvals auto-skip when no rule matches (Section 6.5).
   let targetSys: StageId = nextSys
@@ -37,7 +106,6 @@ export async function approveInvoice(invoiceId: string | number, comment?: strin
     id: invoiceId as never,
     data: { currentStage: targetStage.id as never, approvals: [] as never } as never,
   })
-  const actorId = await defaultActorId()
   await recordAudit({
     payload,
     invoiceId,
@@ -50,7 +118,19 @@ export async function approveInvoice(invoiceId: string | number, comment?: strin
   revalidatePath('/dashboard')
 }
 
-export async function rejectInvoice(invoiceId: string | number, toSystemId: StageId, reason: string) {
+/**
+ * `reasonId` names a row in the admin-managed Reject reason list; `otherText`
+ * carries the free-text line that the built-in Other option reveals. Whether a
+ * reason is compulsory is a setting, enforced by `resolveReasonText` rather
+ * than by the button being disabled.
+ */
+export async function rejectInvoice(
+  invoiceId: string | number,
+  toSystemId: StageId,
+  reasonId: string | number | null,
+  otherText?: string,
+) {
+  const reason = await resolveReasonText('reject', reasonId, otherText)
   const payload = await getPayload()
   const invoice = (await payload.findByID({ collection: 'invoices', id: invoiceId as never, depth: 2 })) as {
     currentStage?: { systemId: StageId }
@@ -80,27 +160,12 @@ export async function rejectInvoice(invoiceId: string | number, toSystemId: Stag
   revalidatePath('/requests')
 }
 
-export async function reassignInvoice(
-  invoiceId: string | number,
-  userIds: Array<string | number>,
-  departmentIds: Array<string | number>,
-) {
-  const payload = await getPayload()
-  await payload.update({
-    collection: 'invoices',
-    id: invoiceId as never,
-    data: { assignees: userIds as never, departments: departmentIds as never } as never,
-  })
-  const actorId = await defaultActorId()
-  await recordAudit({
-    payload,
-    invoiceId,
-    actorId,
-    action: 'reassigned',
-    context: { users: userIds, departments: departmentIds },
-  })
-  revalidatePath(`/requests/${invoiceId}`)
-}
+// `reassignInvoice` used to live here. It overwrote the whole assignee and
+// department list — moving every outstanding sign-off at once, with no reason
+// attached — and no screen ever called it. Reassignment is now one engine,
+// `reassignInvoices` in backend/actions/reassign-actions.ts, which moves a
+// single pending slot and which the single-invoice modal calls with a batch of
+// one. There is no per-invoice variant to keep the two in step.
 
 export async function verifyInvoice(invoiceId: string | number, verified: boolean) {
   const payload = await getPayload()

@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { getPayload } from '../lib/payload'
 import { getStageBySystemId, recordAudit } from '../lib/stage-engine'
+import { evaluateManualInvoiceDuplicate } from './intake-actions'
 
 export async function createInvoiceManual(formData: FormData): Promise<{ id: string | number }> {
   const payload = await getPayload()
@@ -19,6 +20,32 @@ export async function createInvoiceManual(formData: FormData): Promise<{ id: str
   const confidential = formData.get('confidential') === 'on'
 
   if (!invoiceNumber) throw new Error('Invoice number required')
+
+  // The duplicate rule is deliberately not intake-only: a vendor emailing AP
+  // directly while a clerk keys the same invoice in by hand is exactly the case
+  // it exists to catch. Whether it runs here at all, and whether a match blocks
+  // or merely flags, is the administrator's setting.
+  const vendorName = vendorId
+    ? ((await payload.findByID({ collection: 'vendors', id: vendorId as never, depth: 0 })) as {
+        name?: string
+      }).name
+    : undefined
+  const duplicate = await evaluateManualInvoiceDuplicate({
+    invoiceNumber,
+    vendorName,
+    poNumber: poNumber || undefined,
+    subtotal,
+    totalTax,
+    grandTotal,
+    invoiceDate: invoiceDate || undefined,
+    dueDate: dueDate || undefined,
+    fiscalYear,
+  })
+  if (duplicate.blocked) {
+    const seen = duplicate.matches.map((m) => m.invoiceNumber).join(', ')
+    console.error('[create-invoice] blocked as a duplicate', { invoiceNumber, matches: seen })
+    throw new Error(`This invoice is already in the system (${seen}).`)
+  }
 
   const tba = await getStageBySystemId(payload, 'to_be_assigned')
   const admin = await payload.find({
@@ -43,6 +70,12 @@ export async function createInvoiceManual(formData: FormData): Promise<{ id: str
       currentStage: tba!.id as never,
       createdVia: 'manual',
       confidential,
+      flags: {
+        possibleDuplicate: duplicate.flagged,
+        // The person typing this in has the paper in front of them, so a
+        // mismatch here is a typo they can see and fix, not a bad scan.
+        amountMismatch: Math.abs(subtotal + totalTax - grandTotal) > 0.01,
+      },
       customFields: priority ? { priority } : {},
     } as never,
   })

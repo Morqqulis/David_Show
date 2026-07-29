@@ -1,15 +1,23 @@
-import { ConfigStub } from '@/components/app/settings/config-stub'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { CodingTableForm } from '@/components/app/settings/coding-table-form'
+import { fetchCodingRules } from '@/backend/actions/coding-rules-actions'
 
-export default function CodingTableSettingsPage() {
+export const dynamic = 'force-dynamic'
+
+export default async function CodingTableSettingsPage() {
+  const rules = await fetchCodingRules()
   return (
-    <ConfigStub
-      title="Coding Table"
-      description="How the coding table behaves: sum-match validation and computed column visibility."
-      fields={[
-        { label: 'Sum-match field', value: 'Subtotal', hint: 'options: subtotal / grandTotal / disabled' },
-        { label: 'On mismatch', value: 'Block advance past AP Review', hint: 'options: warn / block' },
-        { label: 'Tax columns', value: 'Tax $ only', hint: 'options: full / Tax $ only / hidden' },
-      ]}
-    />
+    <Card>
+      <CardHeader>
+        <CardTitle>Coding Table</CardTitle>
+        <CardDescription>
+          Decide what counts as a fully coded invoice, and what happens when someone tries to
+          approve one that is not.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <CodingTableForm rules={rules} />
+      </CardContent>
+    </Card>
   )
 }

@@ -43,6 +43,18 @@ export const Roles: CollectionConfig = {
     },
     { name: 'confidential', type: 'checkbox', defaultValue: false },
     { name: 'bypassCodingRestrictions', type: 'checkbox', defaultValue: false },
+    {
+      // Taking an invoice over from a colleague who is out of office. It sits
+      // beside the other two role flags on purpose: reassignment is a normal
+      // part of the job, not a new permission surface. Off by default, because
+      // a coder or reviewer helping themselves to somebody else's queue is the
+      // behaviour this flag exists to prevent; finance and admin roles are the
+      // ones expected to have it switched on.
+      name: 'allowSelfReassign',
+      type: 'checkbox',
+      defaultValue: false,
+      label: 'Allow reassigning to self',
+    },
     { name: 'isSystem', type: 'checkbox', defaultValue: false, admin: { readOnly: true } },
   ],
 }

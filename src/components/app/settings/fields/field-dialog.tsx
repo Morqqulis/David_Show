@@ -55,7 +55,6 @@ export function FieldDialog({
     width: field?.width ?? 'full',
     section: field?.section ?? null,
     showAsColumn: field?.showAsColumn ?? false,
-    exportable: field?.exportable ?? false,
     order: field?.order ?? 99,
   }))
 
@@ -64,7 +63,8 @@ export function FieldDialog({
       <DialogHeader>
         <DialogTitle>{field ? 'Edit field' : 'Add field'}</DialogTitle>
         <DialogDescription>
-          A field defined here automatically appears on the form, header view, list columns, and (if enabled) the CSV export.
+          A field defined here appears on the form and the invoice header. Turn on the column
+          option to offer it on All Requests, where it can also be filtered and exported.
         </DialogDescription>
       </DialogHeader>
       <div className="grid grid-cols-2 gap-3 py-2">
@@ -156,16 +156,6 @@ export function FieldDialog({
             id="lc"
             checked={!!state.showAsColumn}
             onCheckedChange={(v) => setState((s) => ({ ...s, showAsColumn: v }))}
-          />
-        </div>
-        <div className="col-span-2 flex items-center justify-between rounded border border-border px-3 py-2">
-          <Label htmlFor="exp" className="text-sm font-normal">
-            Available for CSV export
-          </Label>
-          <Switch
-            id="exp"
-            checked={!!state.exportable}
-            onCheckedChange={(v) => setState((s) => ({ ...s, exportable: v }))}
           />
         </div>
       </div>

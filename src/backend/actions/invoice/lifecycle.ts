@@ -3,9 +3,23 @@
 import { revalidatePath } from 'next/cache'
 import { getPayload } from '../../lib/payload'
 import { recordAudit } from '../../lib/stage-engine'
+import { resolveReasonText } from '../reason-actions'
 import { defaultActorId } from './_helpers'
 
-export async function softDeleteInvoice(invoiceId: string | number, reason: string) {
+/**
+ * Cancelling an invoice — moving it to Trash, from where it can be restored.
+ *
+ * The reason used to come from a raw browser prompt box. It now comes from the
+ * admin-managed Cancel list (`reasonId`), with the built-in Other option
+ * revealing the free-text line carried in `otherText`. Whether a reason is
+ * compulsory is a setting; `resolveReasonText` is what enforces it.
+ */
+export async function softDeleteInvoice(
+  invoiceId: string | number,
+  reasonId: string | number | null,
+  otherText?: string,
+) {
+  const reason = await resolveReasonText('cancel', reasonId, otherText)
   const payload = await getPayload()
   const actorId = await defaultActorId()
   await payload.update({

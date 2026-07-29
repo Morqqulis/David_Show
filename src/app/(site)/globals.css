@@ -48,73 +48,106 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/*
+ * Palette ported from the AP Invoice UI reference build (the revamped City
+ * Connections look). Source of truth for the raw values is the `:root` block at
+ * the top of every page in `AP Invoice UI Handoff/`, which names them
+ * --brand / --brand-deep / --tint / --ink / --slate / --dim / --line / --soft.
+ *
+ * Three values deliberately DIVERGE from that source, because the design brief
+ * asks for the revamp specifically so the interface meets WCAG 2.2 AA, and
+ * these three do not. Measured contrast ratios, not estimates:
+ *
+ *   --dim  #8C98A8 as body text ....... 2.93:1 on white — fails AA (needs 4.5)
+ *       -> secondary text uses --slate #56657A (5.94:1). #8C98A8 survives only
+ *          for decorative icons, where no ratio applies.
+ *   --coral #FB6E4B behind white text.. 2.82:1 — fails AA
+ *       -> destructive surfaces use #C2410C (5.18:1). Coral stays an accent
+ *          (alert dots, terminal chips), never a label background.
+ *   --line #E5EBF3 as a form-control edge 1.20:1 — fails 1.4.11 (needs 3:1)
+ *       -> --border keeps #E5EBF3 for decorative rules, but --input, which
+ *          draws the boundary of every text box, is #828EA0 (3.32:1 on white,
+ *          3.15:1 on the page wash). This is what makes "white input boxes, no
+ *          monochromatic fields" actually legible rather than merely pale.
+ */
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.488 0.243 264.376);
-  --primary-foreground: oklch(0.97 0.014 254.604);
-  --secondary: oklch(0.967 0.001 286.375);
-  --secondary-foreground: oklch(0.21 0.006 285.885);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.809 0.105 251.813);
-  --chart-2: oklch(0.623 0.214 259.815);
-  --chart-3: oklch(0.546 0.245 262.881);
-  --chart-4: oklch(0.488 0.243 264.376);
-  --chart-5: oklch(0.424 0.199 265.638);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.546 0.245 262.881);
-  --sidebar-primary-foreground: oklch(0.97 0.014 254.604);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  /* Page wash --soft; surfaces sit on top of it in white. */
+  --background: #f7f9fc;
+  --foreground: #0e1b2e; /* --ink */
+  --card: #ffffff;
+  --card-foreground: #0e1b2e;
+  --popover: #ffffff;
+  --popover-foreground: #0e1b2e;
+  --primary: #1a56e8; /* --brand, 5.93:1 behind white text */
+  --primary-foreground: #ffffff;
+  /* One step darker than the page so a neutral button is still a button. */
+  --secondary: #edf1f7;
+  --secondary-foreground: #56657a; /* --slate */
+  --muted: #f1f5fa;
+  --muted-foreground: #56657a; /* --slate, not --dim: see note above */
+  --accent: #e8eeff; /* --tint: active nav, brand wash */
+  --accent-foreground: #1140b8; /* --brand-deep, 7.39:1 on the tint */
+  --destructive: #c2410c;
+  --border: #e5ebf3; /* --line: dividers and table rules */
+  --input: #828ea0; /* form-control boundary, AA non-text */
+  --ring: #1a56e8;
+  --chart-1: #1a56e8;
+  --chart-2: #18c7b6; /* --accent (teal) */
+  --chart-3: #7c5cfc; /* --violet */
+  --chart-4: #e8a33d; /* --amber */
+  --chart-5: #1fa971; /* --green */
+  /* The reference build rounds cards and controls at 9px. */
+  --radius: 0.5625rem;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #0e1b2e;
+  --sidebar-primary: #1a56e8;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #e8eeff;
+  --sidebar-accent-foreground: #1140b8;
+  --sidebar-border: #e5ebf3;
+  --sidebar-ring: #1a56e8;
 }
 
+/*
+ * The reference build ships no dark theme, so this is derived rather than
+ * ported: the same cobalt hue rotated onto a navy-ink ground. Kept honest to
+ * the same AA bar — every pair below was measured, not eyeballed.
+ * Note that this project's destructive button is tinted background + coloured
+ * TEXT (`bg-destructive/10 text-destructive`), so --destructive is judged as a
+ * foreground here, not as a fill behind white.
+ */
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.424 0.199 265.638);
-  --primary-foreground: oklch(0.97 0.014 254.604);
-  --secondary: oklch(0.274 0.006 286.033);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.809 0.105 251.813);
-  --chart-2: oklch(0.623 0.214 259.815);
-  --chart-3: oklch(0.546 0.245 262.881);
-  --chart-4: oklch(0.488 0.243 264.376);
-  --chart-5: oklch(0.424 0.199 265.638);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.623 0.214 259.815);
-  --sidebar-primary-foreground: oklch(0.97 0.014 254.604);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --background: #0b1220;
+  --foreground: #e8eef6; /* 16.0:1 */
+  --card: #131c2e;
+  --card-foreground: #e8eef6; /* 14.6:1 */
+  --popover: #131c2e;
+  --popover-foreground: #e8eef6;
+  --primary: #4f82ff;
+  --primary-foreground: #0b1220; /* 5.3:1 */
+  --secondary: #1c2740;
+  --secondary-foreground: #c3cedf;
+  --muted: #1c2740;
+  --muted-foreground: #a2b0c4; /* 7.7:1 on card */
+  --accent: #1b2c55;
+  --accent-foreground: #b9cdff; /* 8.6:1 */
+  --destructive: #f97045; /* as text on the dark card: 6.6:1 */
+  --border: #23304a;
+  --input: #626f89; /* 3.4:1 on card — AA non-text */
+  --ring: #4f82ff;
+  --chart-1: #4f82ff;
+  --chart-2: #35dccb;
+  --chart-3: #9b83ff;
+  --chart-4: #f0b661;
+  --chart-5: #3fc38c;
+  --sidebar: #101828;
+  --sidebar-foreground: #e8eef6;
+  --sidebar-primary: #4f82ff;
+  --sidebar-primary-foreground: #0b1220;
+  --sidebar-accent: #1b2c55;
+  --sidebar-accent-foreground: #b9cdff;
+  --sidebar-border: #23304a;
+  --sidebar-ring: #4f82ff;
 }
 
 @layer base {

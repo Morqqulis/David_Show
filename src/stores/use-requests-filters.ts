@@ -9,19 +9,16 @@ export type InvoiceFlagFilter =
   | 'ocrFailed'
   | 'noAttachment'
   | 'vendorSetupRequired'
+  | 'amountMismatch'
 
 /**
- * Client-side filter state for /requests.
+ * Search and flag inputs for /requests.
  *
- * Active invoices are fully loaded on the client (Payload `select` keeps the
- * payload small) so filters apply via in-memory derivation rather than a
- * server roundtrip. Apply feels instant; tab counts and sidebar update in the
- * same React commit as the table.
- *
- * Completed invoices are paginated server-side. Current iteration filters
- * them client-side too — only the visible page is searched. If a customer
- * has a large completed archive and wants cross-page filter, swap that
- * specific tab to a server query.
+ * This store exists so the text box echoes instantly while the real query is
+ * still in flight. It is NOT what narrows the list: the URL carries the search
+ * to the server, which filters the whole result set. Keeping the typed value
+ * here and the answered value in the URL is what stops a filter from looking
+ * applied while the rows still belong to the previous query.
  */
 type RequestsFiltersStore = {
   q: string

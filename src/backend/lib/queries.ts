@@ -1,6 +1,7 @@
 import { unstable_cache } from 'next/cache'
 import { getPayload } from './payload'
 import { STAGE_ORDER, type StageId } from './stage-ids'
+import type { ColumnFieldDoc, SavedViewSpec } from './invoice-filters'
 
 export const MAX_PAGE_SIZE = 50
 export const DEFAULT_PAGE_SIZE = 25
@@ -65,9 +66,9 @@ function clampPageSize(n?: number): number {
 /**
  * Per-stage invoice counts.
  *
- * Accepts the same shared filter clauses as `fetchInvoicesForTabs` so the
- * counts shown in TabsTrigger / Sidebar reflect any active filter (search,
- * flag, vendor, batch). Without extraFilters it returns global totals.
+ * Accepts the same clauses as `fetchRequestsPage` so the counts shown on the
+ * stage tabs and in the sidebar reflect whatever filter is applied (search,
+ * flag, column filters). Without extraFilters it returns global totals.
  *
  * Wrapped in `unstable_cache` so multiple page navigations sharing the same
  * filter args return cached counts without re-hitting the DB. Cache key
@@ -142,7 +143,14 @@ export type InvoiceListFilters = {
   vendor?: string | number
   department?: string | number
   batch?: string | number
-  flags?: Array<'archiveFailed' | 'possibleDuplicate' | 'noAttachment' | 'ocrFailed' | 'vendorSetupRequired'>
+  flags?: Array<
+    | 'archiveFailed'
+    | 'possibleDuplicate'
+    | 'noAttachment'
+    | 'ocrFailed'
+    | 'vendorSetupRequired'
+    | 'amountMismatch'
+  >
   confidential?: boolean
   page?: number
   pageSize?: number
@@ -196,6 +204,8 @@ const INVOICE_LIST_SELECT = {
   invoiceNumber: true,
   invoiceDate: true,
   dueDate: true,
+  poNumber: true,
+  fiscalYear: true,
   subtotal: true,
   totalTax: true,
   grandTotal: true,
@@ -211,149 +221,225 @@ const INVOICE_LIST_SELECT = {
   updatedAt: true,
 }
 
-export type TabbedInvoicesResult = {
-  active: InvoiceListResult['docs']
-  completed: InvoiceListResult
+export type RequestsQuery = {
+  /** Stage tab the screen is showing. Part of the saved view, not separate from it. */
+  stage: StageId | 'all'
+  search?: string
+  flags?: InvoiceListFilters['flags']
+  /** Already-compiled column-filter clauses from `compileInvoiceFilters`. */
+  columnClauses?: Record<string, unknown>[]
+  /** Already-mapped Payload sort keys from `buildInvoiceSort`. */
+  sort?: string[]
+  page?: number
+  pageSize?: number
+}
+
+export type RequestsPageResult = InvoiceListResult & {
   counts: Record<StageId | 'all', number>
 }
 
 /**
- * Single SSR fetch for the /requests page (Tabs UX).
+ * The single SSR fetch behind /requests.
  *
- * - `active`: every invoice NOT in `completed` stage, no pagination — they get
- *   distributed client-side across 8 tabs by `currentStage.systemId`. With
- *   `select` + `depth: 1` the payload is light (~200-1000 records typical for
- *   an AP shop).
- * - `completed`: paginated separately because the completed archive can grow
- *   unbounded over years. Honors `completedPage` for navigation.
- * - `counts`: per-stage totals from cheap COUNT queries (already parallelized).
+ * Filtering, sorting and pagination all run in the database against the whole
+ * result set. The previous design loaded every active invoice and filtered in
+ * the browser, which looked right on a seeded demo and would have quietly
+ * missed rows the moment an AP shop grew past one page of history.
  *
- * All three run in parallel via `Promise.all`.
+ * Counts come back from the same call as the rows, computed from the same
+ * clauses, so the tab badges and the sidebar can be published in the same
+ * React commit as the table body — no lag between the chrome and the data.
+ *
+ * Deliberately NOT wrapped in `unstable_cache`: the cache key would include
+ * the user's ad-hoc filter, so every keystroke-shaped variation would mint a
+ * new entry that is never read again. The counts query underneath is cached.
  */
-export const fetchInvoicesForTabs = unstable_cache(
-  async function fetchInvoicesForTabs(
-    filters: Omit<InvoiceListFilters, 'stage'> & { completedPage?: number } = {},
-  ): Promise<TabbedInvoicesResult> {
+export async function fetchRequestsPage(query: RequestsQuery): Promise<RequestsPageResult> {
   const payload = await getPayload()
-  const filterClauses = buildFilterClauses(filters)
-  const completedPage = Math.max(1, filters.completedPage ?? 1)
-  const completedPageSize = clampPageSize(filters.pageSize)
+  const shared = buildFilterClauses({ search: query.search, flags: query.flags })
+  const filterClauses = [...shared, ...(query.columnClauses ?? [])]
+  const page = Math.max(1, query.page ?? 1)
+  const pageSize = clampPageSize(query.pageSize)
+  const stageClause =
+    query.stage === 'all' ? [] : [{ 'currentStage.systemId': { equals: query.stage } }]
 
-  const [activeRes, completedRes, counts] = await Promise.all([
+  const [res, counts] = await Promise.all([
     payload.find({
       collection: 'invoices',
-      where: {
-        and: [...filterClauses, { 'currentStage.systemId': { not_equals: 'completed' } }],
-      } as never,
+      where: { and: [...filterClauses, ...stageClause] } as never,
       select: INVOICE_LIST_SELECT as never,
       depth: 1,
-      sort: '-updatedAt',
-      pagination: false,
-      limit: 0,
+      sort: (query.sort?.length ? query.sort : ['-updatedAt']) as never,
+      limit: pageSize,
+      page,
     }),
-    payload.find({
-      collection: 'invoices',
-      where: {
-        and: [...filterClauses, { 'currentStage.systemId': { equals: 'completed' } }],
-      } as never,
-      select: INVOICE_LIST_SELECT as never,
-      depth: 1,
-      sort: '-updatedAt',
-      limit: completedPageSize,
-      page: completedPage,
-    }),
-    // Pass the same filters into counts so TabsTrigger + Sidebar reflect the
-    // active filter, not global totals.
     getStageCounts(filterClauses),
   ])
 
   return {
-    active: activeRes.docs as InvoiceListResult['docs'],
-    completed: {
-      docs: completedRes.docs as InvoiceListResult['docs'],
-      totalDocs: completedRes.totalDocs,
-      totalPages: completedRes.totalPages,
-      page: completedRes.page ?? completedPage,
-      pageSize: completedPageSize,
-      hasPrevPage: completedRes.hasPrevPage,
-      hasNextPage: completedRes.hasNextPage,
-    },
-    counts,
-  }
-  },
-  ['invoices-for-tabs'],
-  { tags: [CACHE_TAG], revalidate: CACHE_TTL },
-)
-
-export async function listInvoices(filters: InvoiceListFilters = {}): Promise<InvoiceListResult> {
-  const payload = await getPayload()
-  const and: Record<string, unknown>[] = [{ softDeleted: { not_equals: true } }]
-  if (filters.stage && filters.stage !== 'all') {
-    and.push({ 'currentStage.systemId': { equals: filters.stage } })
-  }
-  if (filters.search) {
-    and.push({
-      or: [
-        { invoiceNumber: { like: filters.search } },
-        { poNumber: { like: filters.search } },
-        { 'vendor.name': { like: filters.search } },
-        { 'batch.number': { like: filters.search } },
-      ],
-    })
-  }
-  if (filters.vendor) and.push({ vendor: { equals: filters.vendor } })
-  if (filters.department) and.push({ departments: { contains: filters.department } })
-  if (filters.batch) and.push({ batch: { equals: filters.batch } })
-  if (filters.flags) {
-    for (const flag of filters.flags) {
-      and.push({ [`flags.${flag}`]: { equals: true } })
-    }
-  }
-  if (filters.confidential != null) and.push({ confidential: { equals: filters.confidential } })
-
-  const page = Math.max(1, filters.page ?? 1)
-  const pageSize = clampPageSize(filters.pageSize)
-  const res = await payload.find({
-    collection: 'invoices',
-    where: { and } as never,
-    depth: 2,
-    sort: '-updatedAt',
-    limit: pageSize,
-    page,
-  })
-
-  // Batch-fetch lines for visible invoices in one query (avoids N+1 on row expansion).
-  const invoiceIds = res.docs.map((d) => (d as { id: string | number }).id)
-  const linesByInvoice: Record<string, unknown[]> = {}
-  if (invoiceIds.length > 0) {
-    const lineRes = await payload.find({
-      collection: 'invoice-lines',
-      where: { invoice: { in: invoiceIds } } as never,
-      depth: 2,
-      sort: 'order',
-      limit: invoiceIds.length * 20,
-    })
-    for (const line of lineRes.docs as Array<{ invoice: { id?: string | number } | string | number }>) {
-      const invId =
-        typeof line.invoice === 'object' && line.invoice
-          ? String((line.invoice as { id: string | number }).id)
-          : String(line.invoice)
-      ;(linesByInvoice[invId] = linesByInvoice[invId] ?? []).push(line)
-    }
-  }
-  const docs = res.docs as unknown as Array<{ id: string | number; lines?: unknown[] }>
-  for (const doc of docs) {
-    doc.lines = linesByInvoice[String(doc.id)] ?? []
-  }
-  return {
-    docs: docs as InvoiceListResult['docs'],
+    docs: res.docs as InvoiceListResult['docs'],
     totalDocs: res.totalDocs,
     totalPages: res.totalPages,
     page: res.page ?? page,
     pageSize,
     hasPrevPage: res.hasPrevPage,
     hasNextPage: res.hasNextPage,
+    counts,
   }
+}
+
+/** Hard ceiling on a single CSV export, so one click cannot exhaust memory. */
+export const EXPORT_ROW_CAP = 5000
+
+/** Every row matching the current filter, for the CSV export. Same clauses as the screen. */
+export async function fetchInvoicesForExport(
+  query: Omit<RequestsQuery, 'page' | 'pageSize'>,
+): Promise<InvoiceListResult['docs']> {
+  const payload = await getPayload()
+  const shared = buildFilterClauses({ search: query.search, flags: query.flags })
+  const filterClauses = [...shared, ...(query.columnClauses ?? [])]
+  const stageClause =
+    query.stage === 'all' ? [] : [{ 'currentStage.systemId': { equals: query.stage } }]
+
+  const res = await payload.find({
+    collection: 'invoices',
+    where: { and: [...filterClauses, ...stageClause] } as never,
+    select: INVOICE_LIST_SELECT as never,
+    depth: 1,
+    sort: (query.sort?.length ? query.sort : ['-updatedAt']) as never,
+    limit: EXPORT_ROW_CAP,
+    page: 1,
+  })
+  return res.docs as InvoiceListResult['docs']
+}
+
+/**
+ * Header fields an administrator may expose as a column, straight from
+ * Settings → Fields. `showAsColumn` on a field is what item 7 wires up here.
+ */
+export const getColumnFieldDocs = unstable_cache(
+  async function getColumnFieldDocs(): Promise<ColumnFieldDoc[]> {
+    const payload = await getPayload()
+    const res = await payload.find({
+      collection: 'fields',
+      where: { scope: { equals: 'header' } } as never,
+      sort: 'order',
+      limit: 200,
+      depth: 0,
+    })
+    return (res.docs as unknown as ColumnFieldDoc[]).map((f) => ({
+      fieldKey: f.fieldKey,
+      label: f.label,
+      scope: f.scope,
+      type: f.type,
+      showAsColumn: f.showAsColumn,
+      options: f.options ?? null,
+    }))
+  },
+  ['column-field-docs'],
+  { tags: ['fields'], revalidate: STAGES_CACHE_TTL },
+)
+
+export type FilterOptionSources = {
+  departments: Array<{ value: string; label: string }>
+  assignees: Array<{ value: string; label: string }>
+  stages: Array<{ value: string; label: string }>
+}
+
+/** Choice lists for the multi-select and people-picker filter controls. */
+export const getFilterOptionSources = unstable_cache(
+  async function getFilterOptionSources(): Promise<FilterOptionSources> {
+    const payload = await getPayload()
+    const [departments, users, stages] = await Promise.all([
+      payload.find({ collection: 'departments', limit: 200, depth: 0, sort: 'code' }),
+      payload.find({ collection: 'users', limit: 200, depth: 0, sort: 'name' }),
+      payload.find({ collection: 'stages', limit: 50, depth: 0, sort: 'order' }),
+    ])
+    return {
+      departments: (departments.docs as Array<{ code: string; name: string }>).map((d) => ({
+        value: d.code,
+        label: d.name ? `${d.name} (${d.code})` : d.code,
+      })),
+      assignees: (users.docs as Array<{ id: string | number; name?: string; email?: string }>).map((u) => ({
+        value: String(u.id),
+        label: u.name || u.email || 'Unnamed user',
+      })),
+      stages: (stages.docs as Array<{ systemId: string; label: string }>).map((s) => ({
+        value: s.systemId,
+        label: s.label,
+      })),
+    }
+  },
+  ['filter-option-sources'],
+  { tags: [STAGES_CACHE_TAG], revalidate: STAGES_CACHE_TTL },
+)
+
+export type SavedViewRecord = SavedViewSpec & {
+  id: string | number
+  name: string
+  isDefault: boolean
+  /** False when the view was published to the reader by an administrator. */
+  editable: boolean
+  publishedToRoles: Array<string | number>
+}
+
+/**
+ * Views the current operator can open: their own, plus any view an
+ * administrator published to their role. Published views arrive read-only —
+ * they keep their author as owner, so nobody inherits a maintenance burden.
+ */
+export async function listSavedViewsForActor(): Promise<SavedViewRecord[]> {
+  const payload = await getPayload()
+  const actor = await payload.find({
+    collection: 'users',
+    where: { email: { equals: 'david@aurora.ca' } } as never,
+    limit: 1,
+    depth: 0,
+  })
+  const actorDoc = actor.docs[0] as { id: string | number; role?: string | number } | undefined
+  if (!actorDoc) return []
+
+  const ownership: Record<string, unknown>[] = [{ owner: { equals: actorDoc.id } }]
+  if (actorDoc.role != null) ownership.push({ publishedToRoles: { in: [actorDoc.role] } })
+
+  const res = await payload.find({
+    collection: 'saved-views' as never,
+    where: { or: ownership } as never,
+    limit: 100,
+    depth: 0,
+    sort: 'name',
+  })
+
+  return (res.docs as unknown as Array<Record<string, unknown>>).map((doc) => {
+    const owner = doc.owner as string | number | { id: string | number } | undefined
+    const ownerId = typeof owner === 'object' && owner ? owner.id : owner
+    return {
+      id: doc.id as string | number,
+      name: String(doc.name ?? 'Untitled view'),
+      stage: typeof doc.stage === 'string' ? doc.stage : 'all',
+      columns: Array.isArray(doc.columns) ? (doc.columns as string[]) : [],
+      columnOrder: Array.isArray(doc.columnOrder) ? (doc.columnOrder as string[]) : [],
+      filters: Array.isArray(doc.filters) ? (doc.filters as SavedViewSpec['filters']) : [],
+      sort: Array.isArray(doc.sort) ? (doc.sort as SavedViewSpec['sort']) : [],
+      isDefault: doc.isDefault === true,
+      editable: String(ownerId) === String(actorDoc.id),
+      publishedToRoles: Array.isArray(doc.publishedToRoles)
+        ? (doc.publishedToRoles as Array<string | number | { id: string | number }>).map((r) =>
+            typeof r === 'object' && r ? r.id : r,
+          )
+        : [],
+    }
+  })
+}
+
+/** Roles an administrator can publish a view to. */
+export async function listPublishableRoles(): Promise<Array<{ id: string | number; name: string }>> {
+  const payload = await getPayload()
+  const res = await payload.find({ collection: 'roles', limit: 100, depth: 0, sort: 'name' })
+  return (res.docs as Array<{ id: string | number; name: string }>).map((r) => ({
+    id: r.id,
+    name: r.name,
+  }))
 }
 
 export async function getInvoiceWithLines(rawId: string | number) {

@@ -9,6 +9,11 @@ export async function seedRoles(payload: Payload, stages: Array<{ id: Id; system
       description: 'Full access — only role permitted to delete records and edit settings',
       confidential: true,
       bypassCodingRestrictions: true,
+      // On for the finance-side roles, off everywhere else. Taking an invoice
+      // off a colleague who is out of office is Finance's job; a department
+      // coder helping themselves to one is not. Treasurer is deliberately left
+      // at the default — the brief named Finance and Administrator only.
+      allowSelfReassign: true,
       isSystem: true,
       permissions: [
         { action: 'view', object: 'invoice', scope: 'all' },
@@ -22,6 +27,7 @@ export async function seedRoles(payload: Payload, stages: Array<{ id: Id; system
       description: 'View, edit, approve invoices across all stages',
       confidential: false,
       bypassCodingRestrictions: true,
+      allowSelfReassign: true,
       isSystem: false,
       permissions: [
         { action: 'view', object: 'invoice', scope: 'all' },
@@ -36,6 +42,7 @@ export async function seedRoles(payload: Payload, stages: Array<{ id: Id; system
       description: 'AP Clerk + oversight + confidential access',
       confidential: true,
       bypassCodingRestrictions: true,
+      allowSelfReassign: true,
       isSystem: false,
       permissions: [
         { action: 'view', object: 'invoice', scope: 'all' },

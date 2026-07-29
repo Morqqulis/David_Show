@@ -14,6 +14,7 @@ export type RoleRow = {
   permissions?: Array<{ action: string; object: string; scope: string }>
   confidential?: boolean
   bypassCodingRestrictions?: boolean
+  allowSelfReassign?: boolean
   isSystem?: boolean
 }
 
@@ -62,6 +63,21 @@ function buildColumns(): ColumnDef<RoleRow>[] {
       header: ({ column }) => <DataTableColumnHeader column={column} title="Bypass coding" />,
       cell: ({ row }) =>
         row.original.bypassCodingRestrictions ? (
+          <Badge>yes</Badge>
+        ) : (
+          <span className="text-muted-foreground">—</span>
+        ),
+    },
+    {
+      // Shown beside the other two permission flags rather than on a screen of
+      // its own: an administrator deciding who may take an invoice off a
+      // colleague is making the same kind of decision as the two above it, and
+      // a flag nobody can see is a flag nobody maintains.
+      accessorKey: 'allowSelfReassign',
+      meta: { label: 'Reassign to self' },
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Reassign to self" />,
+      cell: ({ row }) =>
+        row.original.allowSelfReassign ? (
           <Badge>yes</Badge>
         ) : (
           <span className="text-muted-foreground">—</span>

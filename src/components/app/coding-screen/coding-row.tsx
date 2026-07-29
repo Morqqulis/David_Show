@@ -1,5 +1,6 @@
 'use client'
 
+import { useQuery } from '@tanstack/react-query'
 import { Save, Trash2 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -8,10 +9,25 @@ import { TableCell, TableRow } from '@/components/ui/table'
 import { Money } from '../money'
 import { LookupSelect } from './lookup-select'
 import { computeLine } from '@/backend/lib/tax-math'
+import { fetchCodableGlAccounts } from '@/backend/actions/gl-mapping-actions'
 import type { CodingLine, CodingOptions, Tax } from './types'
 
+/**
+ * The GL accounts this coder may pick, on their own query key.
+ *
+ * It cannot ride on the shared `lookups` cache: that one is seeded from the
+ * page's server render, and with `staleTime: Infinity` a seeded query never
+ * refetches — the unfiltered server-rendered list would win forever. Every row
+ * on the screen shares this key, so the whole table costs one request.
+ */
+function useCodableGlAccounts() {
+  return useQuery({
+    queryKey: ['codable-gl-accounts'],
+    queryFn: () => fetchCodableGlAccounts(),
+  })
+}
+
 export function CodingRow({
-  idx,
   line,
   opts,
   taxById,
@@ -19,7 +35,6 @@ export function CodingRow({
   onSave,
   onRemove,
 }: {
-  idx: number
   line: CodingLine
   opts: CodingOptions
   taxById: Map<string, Tax>
@@ -32,6 +47,15 @@ export function CodingRow({
     ? computeLine({ amount: line.amount || 0, rate: tax.rate, recoverablePct: tax.recoverablePct })
     : { taxAmount: 0, recoverable: 0, nonRecoverable: 0 }
 
+  const { data: codable, isPending: codableLoading } = useCodableGlAccounts()
+  // Until the permitted list arrives, offer nothing rather than the page's
+  // unfiltered server-rendered catalogue — a GL that flashes up and then
+  // disappears is worse than a moment's wait.
+  const glOptions = codable?.glAccounts ?? []
+  const owningDepartment = codable?.glAccounts.find(
+    (g) => String(g.id) === String(line.glAccount?.id ?? ''),
+  )?.owningDepartmentName
+
   return (
     <TableRow>
       <TableCell>
@@ -39,12 +63,17 @@ export function CodingRow({
           value={line.glAccount?.id ? String(line.glAccount.id) : ''}
           onChange={(id) =>
             onUpdate({
-              glAccount: id ? (opts.gls.find((g) => String(g.id) === id) as never) : null,
+              glAccount: id ? (glOptions.find((g) => String(g.id) === id) as never) : null,
             })
           }
-          options={opts.gls.map((g) => ({ id: String(g.id), label: `${g.code} — ${g.description}` }))}
-          placeholder="Select GL…"
+          options={glOptions.map((g) => ({ id: String(g.id), label: `${g.code} — ${g.description}` }))}
+          placeholder={codableLoading ? 'Loading GL accounts…' : 'Select GL…'}
+          disabled={codableLoading}
+          emptyMessage={codable?.message ?? 'No GL accounts are available to you.'}
         />
+        {owningDepartment ? (
+          <p className="mt-1 text-[10px] text-muted-foreground">Approval routes to {owningDepartment}.</p>
+        ) : null}
       </TableCell>
       <TableCell>
         <LookupSelect

@@ -17,7 +17,6 @@ export type FieldRow = {
   isSystem?: boolean
   removable?: boolean
   showAsColumn?: boolean
-  exportable?: boolean
   order?: number
 }
 
@@ -80,12 +79,6 @@ export function buildFieldsColumns({
       meta: { label: 'List col' },
       header: ({ column }) => <DataTableColumnHeader column={column} title="List col" />,
       cell: ({ row }) => (row.original.showAsColumn ? '✓' : '—'),
-    },
-    {
-      accessorKey: 'exportable',
-      meta: { label: 'Export' },
-      header: ({ column }) => <DataTableColumnHeader column={column} title="Export" />,
-      cell: ({ row }) => (row.original.exportable ? '✓' : '—'),
     },
     {
       id: 'actions',

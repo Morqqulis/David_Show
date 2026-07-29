@@ -13,7 +13,9 @@ export default async function RolesPage() {
       <CardHeader>
         <CardTitle>Roles & Permissions</CardTitle>
         <CardDescription>
-          Roles are a collection of permissions (action × object × scope) plus two flags: Confidential and Bypass Coding Restrictions.
+          Roles are a collection of permissions (action × object × scope) plus three flags:
+          Confidential, Bypass Coding Restrictions, and whether the role may reassign an invoice
+          to itself.
         </CardDescription>
       </CardHeader>
       <CardContent>

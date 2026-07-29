@@ -2,20 +2,27 @@
 
 import Link from 'next/link'
 import type { ColumnDef } from '@tanstack/react-table'
-import { ChevronRight, ExternalLink, Lock } from 'lucide-react'
+import { ChevronRight, ExternalLink } from 'lucide-react'
 import { Checkbox } from '@/components/ui/checkbox'
 import { cn } from '@/lib/utils'
 import { DataTableColumnHeader } from '@/components/ui/data-table/column-header'
-import { StageBadge } from '../stage-badge'
-import { Money } from '../money'
-import { formatDate } from '@/backend/lib/formatting'
-import { STAGE_ORDER } from '@/backend/lib/stage-ids'
-import { FlagsRow } from './flags-row'
+import type { ColumnFilterSpec, InvoiceColumn } from '@/backend/lib/invoice-filters'
+import { CELL_RENDERERS, NUMERIC_COLUMN_IDS, renderCustomValue } from './cell-renderers'
+import { ColumnFilterControl, type ColumnFilterOption } from './column-filter'
 import type { InvoiceRow } from './types'
 
-// Sort by stage position in the workflow (not alphabetical on label) so the
-// natural order in the UI is intake → completed.
-const STAGE_POSITION = new Map(STAGE_ORDER.map((s, i) => [s, i]))
+/** Structural columns the user never hides and the view spec never records. */
+export const STRUCTURAL_COLUMN_IDS = ['select', 'expand', 'actions']
+
+export type InvoiceColumnsConfig = {
+  /** Every column the screen may show, already resolved from Settings → Fields. */
+  columns: InvoiceColumn[]
+  /** Current filter per column id. */
+  filters: Record<string, ColumnFilterSpec>
+  /** Choice lists for tick-list filters, keyed by column id. */
+  filterOptions: Record<string, ColumnFilterOption[]>
+  onFilterChange: (columnId: string, next: ColumnFilterSpec | null) => void
+}
 
 function selectColumn(): ColumnDef<InvoiceRow> {
   return {
@@ -64,124 +71,6 @@ function expandColumn(): ColumnDef<InvoiceRow> {
   }
 }
 
-function invoiceNumberColumn(): ColumnDef<InvoiceRow> {
-  return {
-    accessorKey: 'invoiceNumber',
-    meta: { label: 'Invoice' },
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Invoice" />,
-    cell: ({ row }) => (
-      <div>
-        <Link
-          href={`/requests/${row.original.id}`}
-          className="font-medium text-foreground hover:text-primary hover:underline"
-        >
-          {row.original.invoiceNumber}
-        </Link>
-        <FlagsRow row={row.original} />
-      </div>
-    ),
-  }
-}
-
-function vendorColumn(): ColumnDef<InvoiceRow> {
-  return {
-    id: 'vendor',
-    accessorFn: (row) => row.vendor?.name ?? '',
-    meta: { label: 'Vendor' },
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Vendor" />,
-    cell: ({ row }) => (
-      <div className="flex items-center gap-1.5">
-        {row.original.confidential ? <Lock className="h-3.5 w-3.5 text-amber-600" /> : null}
-        <span>{row.original.vendor?.name ?? '—'}</span>
-      </div>
-    ),
-  }
-}
-
-function stageColumn(): ColumnDef<InvoiceRow> {
-  return {
-    id: 'currentStage',
-    accessorFn: (row) =>
-      row.currentStage ? STAGE_POSITION.get(row.currentStage.systemId) ?? 99 : 99,
-    meta: { label: 'Stage' },
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Stage" />,
-    cell: ({ row }) =>
-      row.original.currentStage ? <StageBadge stage={row.original.currentStage as never} size="sm" /> : null,
-  }
-}
-
-function departmentColumn(): ColumnDef<InvoiceRow> {
-  return {
-    id: 'departments',
-    accessorFn: (row) => row.departments?.map((d) => d.code).join(', ') ?? '',
-    meta: { label: 'Department' },
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Department" />,
-    cell: ({ row }) => row.original.departments?.map((d) => d.code).join(', ') ?? '—',
-  }
-}
-
-function assigneeColumn(): ColumnDef<InvoiceRow> {
-  return {
-    id: 'assignees',
-    accessorFn: (row) => row.assignees?.map((a) => a.name).join(', ') ?? '',
-    meta: { label: 'Assignee' },
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Assignee" />,
-    cell: ({ row }) =>
-      row.original.assignees && row.original.assignees.length > 0
-        ? row.original.assignees.map((a) => a.name).join(', ')
-        : '—',
-  }
-}
-
-function batchColumn(): ColumnDef<InvoiceRow> {
-  return {
-    id: 'batch',
-    accessorFn: (row) => row.batch?.number ?? '',
-    meta: { label: 'Batch' },
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Batch" />,
-    cell: ({ row }) => <span className="font-mono text-xs">{row.original.batch?.number ?? '—'}</span>,
-  }
-}
-
-function invoiceDateColumn(): ColumnDef<InvoiceRow> {
-  return {
-    accessorKey: 'invoiceDate',
-    meta: { label: 'Date' },
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Date" />,
-    cell: ({ row }) => (
-      <span className="text-xs text-muted-foreground">{formatDate(row.original.invoiceDate)}</span>
-    ),
-  }
-}
-
-function dueDateColumn(): ColumnDef<InvoiceRow> {
-  return {
-    accessorKey: 'dueDate',
-    meta: { label: 'Due' },
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Due" />,
-    cell: ({ row }) => (
-      <span className="text-xs text-muted-foreground">{formatDate(row.original.dueDate)}</span>
-    ),
-  }
-}
-
-function grandTotalColumn(): ColumnDef<InvoiceRow> {
-  return {
-    accessorKey: 'grandTotal',
-    meta: { label: 'Amount' },
-    header: ({ column }) => (
-      <div className="text-right">
-        <DataTableColumnHeader column={column} title="Amount" />
-      </div>
-    ),
-    cell: ({ row }) => (
-      <div className="text-right font-medium">
-        <Money value={row.original.grandTotal} />
-      </div>
-    ),
-  }
-}
-
 function actionsColumn(): ColumnDef<InvoiceRow> {
   return {
     id: 'actions',
@@ -201,19 +90,51 @@ function actionsColumn(): ColumnDef<InvoiceRow> {
   }
 }
 
-export function buildInvoiceColumns({ showStageColumn }: { showStageColumn: boolean }): ColumnDef<InvoiceRow>[] {
+function dataColumn(spec: InvoiceColumn, config: InvoiceColumnsConfig): ColumnDef<InvoiceRow> {
+  const render = CELL_RENDERERS[spec.id]
+  const numeric = NUMERIC_COLUMN_IDS.has(spec.id)
+  return {
+    id: spec.id,
+    meta: { label: spec.label },
+    // Sorting and filtering both happen in the database against the whole
+    // result set, so the table itself must not re-order or re-filter the page
+    // it was handed.
+    enableSorting: !!spec.sortKey,
+    enableHiding: true,
+    header: ({ column }) => (
+      <div className={cn('flex items-center gap-0.5', numeric && 'justify-end')}>
+        <DataTableColumnHeader column={column} title={spec.label} />
+        <ColumnFilterControl
+          column={spec}
+          value={config.filters[spec.id]}
+          options={config.filterOptions[spec.id] ?? []}
+          onChange={(next) => config.onFilterChange(spec.id, next)}
+        />
+      </div>
+    ),
+    cell: ({ row }) => (render ? render(row.original) : renderCustomValue(row.original, spec.id)),
+  }
+}
+
+/**
+ * Build the table's columns from the resolved column registry.
+ *
+ * Order follows `columnOrder` so a saved view restores the arrangement its
+ * author left behind; the structural select/expand/actions columns always
+ * bracket the data columns.
+ */
+export function buildInvoiceColumns(
+  config: InvoiceColumnsConfig,
+  columnOrder: string[],
+): ColumnDef<InvoiceRow>[] {
+  const byId = new Map(config.columns.map((c) => [c.id, c]))
+  const ordered = columnOrder
+    .map((id) => byId.get(id))
+    .filter((c): c is InvoiceColumn => c !== undefined)
   return [
     selectColumn(),
     expandColumn(),
-    invoiceNumberColumn(),
-    vendorColumn(),
-    ...(showStageColumn ? [stageColumn()] : []),
-    departmentColumn(),
-    assigneeColumn(),
-    batchColumn(),
-    invoiceDateColumn(),
-    dueDateColumn(),
-    grandTotalColumn(),
+    ...ordered.map((spec) => dataColumn(spec, config)),
     actionsColumn(),
   ]
 }

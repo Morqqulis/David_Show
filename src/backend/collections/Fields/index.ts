@@ -92,8 +92,27 @@ export const Fields: CollectionConfig = {
       relationTo: 'stages',
       hasMany: true,
     },
-    { name: 'showAsColumn', type: 'checkbox', defaultValue: false },
-    { name: 'exportable', type: 'checkbox', defaultValue: false },
+    {
+      name: 'showAsColumn',
+      type: 'checkbox',
+      defaultValue: false,
+      admin: {
+        description:
+          'Offer this field as a column on All Requests. The CSV export follows whatever columns the user has on screen, so there is no separate export setting.',
+      },
+    },
+    {
+      // DEAD FIELD, kept only to hold its column in place. The fixed-shape ERP
+      // export it used to define is gone — the CSV export now follows whatever
+      // the user has on screen — so nothing reads this and no screen shows it,
+      // which is what the change asked for. Dropping the column outright is a
+      // destructive migration and a separate, deliberate decision; delete the
+      // field and the column together when that decision is taken.
+      name: 'exportable',
+      type: 'checkbox',
+      defaultValue: false,
+      admin: { hidden: true },
+    },
     { name: 'isSystem', type: 'checkbox', defaultValue: false, admin: { readOnly: true } },
     { name: 'removable', type: 'checkbox', defaultValue: true, admin: { readOnly: true } },
     { name: 'description', type: 'textarea' },

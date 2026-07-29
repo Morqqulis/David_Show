@@ -5,6 +5,8 @@ import {
   type ColumnFiltersState,
   type ExpandedState,
   type RowSelectionState,
+  type ColumnOrderState,
+  type OnChangeFn,
   type SortingState,
   type VisibilityState,
   flexRender,
@@ -29,6 +31,20 @@ export type DataTableProps<TData> = {
   initialColumnVisibility?: VisibilityState
   /** Initial sorting. */
   initialSorting?: SortingState
+  /**
+   * Controlled table state. Supplying any of these hands ownership to the
+   * caller — used by All Requests, where the arrangement lives in the URL so
+   * that the server can answer with the matching rows. Omitting them keeps the
+   * table self-contained, which is what the settings tables rely on.
+   */
+  sorting?: SortingState
+  onSortingChange?: (next: SortingState) => void
+  columnVisibility?: VisibilityState
+  onColumnVisibilityChange?: (next: VisibilityState) => void
+  columnOrder?: ColumnOrderState
+  onColumnOrderChange?: (next: ColumnOrderState) => void
+  /** True when sorting is resolved by the server against the full result set. */
+  manualSorting?: boolean
   /** Optional sub-row renderer; when provided, expanded rows render this below them. */
   renderSubComponent?: (row: Row<TData>) => React.ReactNode
   /** Called when a row is hovered (use for prefetching detail data). */
@@ -49,6 +65,13 @@ export function DataTable<TData>({
   getRowId,
   initialColumnVisibility,
   initialSorting,
+  sorting: controlledSorting,
+  onSortingChange,
+  columnVisibility: controlledVisibility,
+  onColumnVisibilityChange,
+  columnOrder: controlledOrder,
+  onColumnOrderChange,
+  manualSorting = false,
   renderSubComponent,
   onRowMouseEnter,
   renderToolbar,
@@ -56,13 +79,40 @@ export function DataTable<TData>({
   emptyMessage = 'No records.',
   className,
 }: DataTableProps<TData>) {
-  const [sorting, setSorting] = useState<SortingState>(initialSorting ?? [])
+  const [internalSorting, setInternalSorting] = useState<SortingState>(initialSorting ?? [])
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
-  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>(
+  const [internalVisibility, setInternalVisibility] = useState<VisibilityState>(
     initialColumnVisibility ?? {},
   )
+  const [internalOrder, setInternalOrder] = useState<ColumnOrderState>([])
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
   const [expanded, setExpanded] = useState<ExpandedState>({})
+
+  const sorting = controlledSorting ?? internalSorting
+  const columnVisibility = controlledVisibility ?? internalVisibility
+  const columnOrder = controlledOrder ?? internalOrder
+
+  // TanStack hands change handlers either a value or an updater. Resolve it
+  // against the current value before deciding whether the caller or this
+  // component owns the state.
+  function resolve<T>(updater: T | ((old: T) => T), current: T): T {
+    return typeof updater === 'function' ? (updater as (old: T) => T)(current) : updater
+  }
+  const handleSorting: OnChangeFn<SortingState> = (updater) => {
+    const next = resolve(updater, sorting)
+    if (onSortingChange) onSortingChange(next)
+    else setInternalSorting(next)
+  }
+  const handleVisibility: OnChangeFn<VisibilityState> = (updater) => {
+    const next = resolve(updater, columnVisibility)
+    if (onColumnVisibilityChange) onColumnVisibilityChange(next)
+    else setInternalVisibility(next)
+  }
+  const handleOrder: OnChangeFn<ColumnOrderState> = (updater) => {
+    const next = resolve(updater, columnOrder)
+    if (onColumnOrderChange) onColumnOrderChange(next)
+    else setInternalOrder(next)
+  }
 
   const stableGetRowId = useMemo(() => getRowId, [getRowId])
 
@@ -70,12 +120,14 @@ export function DataTable<TData>({
     data,
     columns,
     getRowId: stableGetRowId,
-    state: { sorting, columnFilters, columnVisibility, rowSelection, expanded },
+    state: { sorting, columnFilters, columnVisibility, columnOrder, rowSelection, expanded },
     enableRowSelection: true,
     enableExpanding: !!renderSubComponent,
-    onSortingChange: setSorting,
+    manualSorting,
+    onSortingChange: handleSorting,
     onColumnFiltersChange: setColumnFilters,
-    onColumnVisibilityChange: setColumnVisibility,
+    onColumnVisibilityChange: handleVisibility,
+    onColumnOrderChange: handleOrder,
     onRowSelectionChange: setRowSelection,
     onExpandedChange: setExpanded,
     getCoreRowModel: getCoreRowModel(),

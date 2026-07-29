@@ -8,6 +8,7 @@ import {
   type StageDefinition,
 } from '../lib/queries'
 import { getPayload } from '../lib/payload'
+import { fetchCodableGlAccounts } from './gl-mapping-actions'
 import type { StageId } from '../lib/stage-ids'
 
 export type QueueCountsPayload = {
@@ -36,10 +37,15 @@ export type LookupsPayload = {
   vendors: Array<{ id: string | number; vendorNumber: string; name: string }>
 }
 
+/**
+ * The GL account list is narrowed to the ones the current coder may use — the
+ * same rule the coding screen's dropdown applies, so no consumer of the shared
+ * lookup catalogue offers a GL that would be refused on save.
+ */
 export async function fetchLookups(): Promise<LookupsPayload> {
   const payload = await getPayload()
-  const [gls, taxCodes, costCenters, projects, funds, vendors] = await Promise.all([
-    payload.find({ collection: 'gl-accounts', limit: 500, depth: 0, sort: 'code' }),
+  const [codable, taxCodes, costCenters, projects, funds, vendors] = await Promise.all([
+    fetchCodableGlAccounts(),
     payload.find({ collection: 'tax-codes', limit: 100, depth: 0, sort: 'code' }),
     payload.find({ collection: 'dimensions', where: { kind: { equals: 'cost_center' } } as never, limit: 500, depth: 0, sort: 'code' }),
     payload.find({ collection: 'dimensions', where: { kind: { equals: 'project' } } as never, limit: 500, depth: 0, sort: 'code' }),
@@ -47,7 +53,7 @@ export async function fetchLookups(): Promise<LookupsPayload> {
     payload.find({ collection: 'vendors', limit: 500, depth: 0, sort: 'name' }),
   ])
   return {
-    glAccounts: gls.docs as never,
+    glAccounts: codable.glAccounts as never,
     taxCodes: taxCodes.docs as never,
     costCenters: costCenters.docs as never,
     projects: projects.docs as never,

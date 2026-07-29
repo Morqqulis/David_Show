@@ -8,6 +8,10 @@ export const AUDIT_ACTIONS = [
   'approved',
   'rejected',
   'coded',
+  // A correction to the vendor's own figures. Worth its own action because the
+  // intake entry is the only record of what OCR first produced, so a later edit
+  // has to be visible against it rather than folded into a generic 'updated'.
+  'amounts_corrected',
   'batch_applied',
   'batch_wiped',
   'batch_closed',

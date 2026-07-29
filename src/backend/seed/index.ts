@@ -11,9 +11,13 @@ import { seedTaxCodes } from './tax-codes'
 import { seedSections } from './sections'
 import { seedFields } from './fields'
 import { seedApprovalRules } from './approval-rules'
-import { seedCodingRestrictions } from './coding-restrictions'
+import { seedGlDepartmentRouting } from './gl-department-routing'
+import { seedCodingRules } from './coding-rules'
+import { seedActionReasons } from './action-reasons'
 import { seedEmailTemplates } from './email-templates'
 import { seedEmailTriggers } from './email-triggers'
+import { seedEmailSettings } from './email-settings'
+import { seedIntake } from './intake'
 import { seedBatches } from './batches'
 import { seedInvoices } from './invoices'
 
@@ -40,9 +44,15 @@ export async function seedAll(
   const sections = await seedSections(payload)
   const fields = await seedFields(payload, sections, stages)
   const approvalRules = await seedApprovalRules(payload, roles, departments)
-  await seedCodingRestrictions(payload, departments)
+  await seedGlDepartmentRouting(payload, departments)
+  await seedCodingRules(payload)
+  await seedActionReasons(payload)
   const emailTemplates = await seedEmailTemplates(payload)
   await seedEmailTriggers(payload, emailTemplates, stages, roles)
+  await seedEmailSettings(payload)
+  // Runs after the field schema, since the OCR mapping table points at app
+  // fields by key.
+  await seedIntake(payload)
   const batches = await seedBatches(payload, users)
   const invoices = await seedInvoices(payload, {
     stages,

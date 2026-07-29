@@ -19,6 +19,18 @@ import { ApprovalRules } from './ApprovalRules'
 import { CodingRestrictions } from './CodingRestrictions'
 import { EmailTemplates } from './EmailTemplates'
 import { EmailTriggers } from './EmailTriggers'
+import { EmailSettings } from './EmailSettings'
+import { CodingRules } from './CodingRules'
+import { SavedViews } from './SavedViews'
+import { ActionReasons } from './ActionReasons'
+import { GlFormat } from './GlFormat'
+import { DepartmentSegmentMap } from './DepartmentSegmentMap'
+import { IntakeSettings } from './IntakeSettings'
+import { OcrFieldMap } from './OcrFieldMap'
+import { DuplicateRules } from './DuplicateRules'
+import { IntakeQuarantine } from './IntakeQuarantine'
+import { EmailSuppression } from './EmailSuppression'
+import { IntakeEvents } from './IntakeEvents'
 
 export const collections: CollectionConfig[] = [
   Users,
@@ -41,4 +53,20 @@ export const collections: CollectionConfig[] = [
   CodingRestrictions,
   EmailTemplates,
   EmailTriggers,
+  // Settings that are stored as a single row each, because this project has no
+  // Payload globals and adding the concept for one field at a time would be a
+  // larger change than the settings themselves.
+  EmailSettings,
+  CodingRules,
+  GlFormat,
+  IntakeSettings,
+  DuplicateRules,
+  // Per-row configuration and operational records.
+  ActionReasons,
+  SavedViews,
+  DepartmentSegmentMap,
+  OcrFieldMap,
+  EmailSuppression,
+  IntakeQuarantine,
+  IntakeEvents,
 ]

@@ -11,6 +11,7 @@ const SECTIONS: Array<{ title: string; items: Array<{ href: string; label: strin
       { href: '/settings/workflow', label: 'Workflow' },
       { href: '/settings/fields', label: 'Fields' },
       { href: '/settings/sections', label: 'Header Sections' },
+      { href: '/settings/reasons', label: 'Reasons' },
     ],
   },
   {
@@ -33,8 +34,11 @@ const SECTIONS: Array<{ title: string; items: Array<{ href: string; label: strin
     title: 'Automation',
     items: [
       { href: '/settings/approval-rules', label: 'Approval Rules' },
+      { href: '/settings/intake', label: 'Email Intake' },
+      { href: '/settings/quarantine', label: 'Held Emails' },
       { href: '/settings/duplicate-detection', label: 'Duplicate Detection' },
-      { href: '/settings/ocr', label: 'OCR' },
+      { href: '/settings/ocr', label: 'Invoice Reading (OCR)' },
+      { href: '/settings/intake-test', label: 'Test invoice reading' },
     ],
   },
   {

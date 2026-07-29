@@ -76,16 +76,25 @@ export function InvoiceView({ data }: { data: InvoiceViewData }) {
 
   const currentStage = (inv.currentStage?.systemId ?? 'to_be_assigned') as StageId
 
-  const onApprove = () => approve.mutate({ id: inv.id, currentStage })
-  const onReject = (target: StageId, reason: string) => reject.mutate({ id: inv.id, target, reason })
+  const onApprove = (options?: { acknowledgedWarning?: boolean }) =>
+    approve.mutate({ id: inv.id, currentStage, acknowledgedWarning: options?.acknowledgedWarning })
+  const onReject = (target: StageId, reasonId: string | null, otherText: string) =>
+    reject.mutate({ id: inv.id, target, reasonId, otherText })
   const onVerify = (v: boolean) => verify.mutate({ id: inv.id, value: v })
   const onToggleConfidential = () => confidential.mutate({ id: inv.id, value: !inv.confidential })
 
-  const onSoftDelete = () => {
-    const reason = window.prompt('Reason for delete?')
-    if (!reason) return
+  // The reason used to come from a raw browser prompt box, which looks like a
+  // broken page to a finance clerk. The action bar now collects it from the
+  // admin-managed Cancel list and hands the choice down here.
+  const onSoftDelete = (reasonId: string | null, otherText: string) => {
     startTransition(async () => {
-      await softDeleteInvoice(inv.id, reason)
+      try {
+        await softDeleteInvoice(inv.id, reasonId, otherText)
+      } catch (err) {
+        console.error('[invoice-view] moving the invoice to Trash failed', { id: inv.id, err })
+        toast.error((err as Error).message || 'The invoice could not be moved to Trash.')
+        return
+      }
       toast.success('Invoice moved to Trash')
       // Sidebar/topbar counts and the /requests list both read from TanStack
       // caches with staleTime: Infinity — drop them so the deleted invoice
@@ -156,6 +165,7 @@ export function InvoiceView({ data }: { data: InvoiceViewData }) {
       </div>
 
       <InvoiceActionBar
+        invoiceId={inv.id}
         currentStage={currentStage}
         verified={!!inv.verified}
         confidential={!!inv.confidential}

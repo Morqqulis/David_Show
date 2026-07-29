@@ -40,7 +40,22 @@ export async function recordAudit(args: {
   // Drop the cached counts / lists / dashboard data so the next read sees fresh
   // values. `updateTag` is Next.js 16's Server-Action-scoped primitive that
   // also gives read-your-own-writes semantics for the actor.
-  updateTag('invoices')
+  //
+  // It THROWS outside that scope, which matters because email intake records
+  // its audit entry from an `after()` callback on the Graph webhook, not from a
+  // server action. Letting that throw would lose an invoice that had already
+  // been created and stored — a far worse outcome than a cache that goes stale
+  // for the thirty seconds until it revalidates on its own. The write above has
+  // already committed by the time we get here, so swallowing this is safe.
+  try {
+    updateTag('invoices')
+  } catch (err) {
+    console.warn('[audit] cache tag not dropped — recorded outside a server action', {
+      action: args.action,
+      invoiceId: args.invoiceId,
+      reason: err instanceof Error ? err.message : String(err),
+    })
+  }
 }
 
 export async function moveToStage(input: StageTransitionInput) {

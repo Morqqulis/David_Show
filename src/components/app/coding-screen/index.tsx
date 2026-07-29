@@ -2,13 +2,19 @@
 
 import { useEffect, useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { saveLine, deleteLine } from '@/backend/actions/invoice'
+import { fetchCodingGate, submitDepartmentCoding } from '@/backend/actions/invoice/coding'
 import { computeLine } from '@/backend/lib/tax-math'
+import {
+  DEFAULT_CODING_RULES,
+  evaluateCodingCompleteness,
+} from '@/backend/lib/coding-completeness'
 import { useLookups, queryKeys, type LookupsPayload } from '@/hooks/use-ap-queries'
 
 import { CodingHeaderBar } from './header-bar'
@@ -89,7 +95,62 @@ export function CodingScreen({
     )
   }, [lines, taxById])
 
-  const subtotalMismatch = Math.abs(totals.subtotal - invoice.subtotal) > 0.01
+  // The sum-match rule and the multi-department carve-out both live server-side;
+  // this read only mirrors them so the coder is told what is missing before they
+  // walk to the invoice screen and press Approve.
+  const { data: gate } = useQuery({
+    queryKey: ['coding-gate', String(invoice.id)] as const,
+    queryFn: () => fetchCodingGate(invoice.id),
+  })
+  const rules = gate?.rules ?? DEFAULT_CODING_RULES
+  const gateEnforced = gate?.enforced ?? true
+
+  // Evaluated against the lines currently on screen, including unsaved edits,
+  // rather than against the server's copy — otherwise the banner lags a save.
+  const verdict = useMemo(
+    () =>
+      evaluateCodingCompleteness({
+        rules,
+        lines: lines.map((l, i) => ({
+          id: l.id ?? l._localId ?? i,
+          amount: l.amount || 0,
+          hasGlAccount: Boolean(l.glAccount),
+        })),
+        subtotal: invoice.subtotal,
+        grandTotal: invoice.grandTotal,
+        // Always evaluated as if enforced: an early coder on a multi-department
+        // invoice is not blocked, but still deserves to see the shortfall. The
+        // banner labels the difference.
+        enforce: true,
+      }),
+    [rules, lines, invoice.subtotal, invoice.grandTotal],
+  )
+
+  const subtotalMismatch = Math.abs(totals.subtotal - invoice.subtotal) > rules.tolerance
+
+  const outstanding = gate?.outstandingDepartments ?? []
+  // The submission marker only means something once several departments share
+  // the invoice; with one department the plain rule applies and there is
+  // nothing to hand off.
+  const showDepartmentSubmit = outstanding.length > 1
+
+  function submitMyDepartment(departmentId: string | number, departmentName: string) {
+    startTransition(async () => {
+      try {
+        await submitDepartmentCoding(invoice.id, departmentId)
+        await qc.invalidateQueries({ queryKey: ['coding-gate', String(invoice.id)] })
+        await qc.invalidateQueries({ queryKey: queryKeys.invoice(invoice.id) })
+        toast.success(`${departmentName} coding submitted`)
+      } catch (err) {
+        console.error('[coding-gate] department submission failed', {
+          invoiceId: invoice.id,
+          departmentId,
+          err,
+        })
+        toast.error((err as Error).message || 'Could not submit this department’s coding')
+      }
+    })
+  }
 
   function updateLine(idx: number, patch: Partial<CodingLine>) {
     setLines((ls) => ls.map((l, i) => (i === idx ? { ...l, ...patch, _dirty: true } : l)))
@@ -194,8 +255,30 @@ export function CodingScreen({
             </TabsList>
             <TabsContent value="coding" className="m-0 flex-1 overflow-y-auto p-4">
               <div className="space-y-3">
-                {subtotalMismatch ? (
-                  <MismatchBanner linesSum={totals.subtotal} headerSubtotal={invoice.subtotal} />
+                {verdict.reasons.length > 0 ? (
+                  <MismatchBanner
+                    verdict={verdict}
+                    enforced={gateEnforced}
+                    outstandingDepartments={outstanding}
+                  />
+                ) : null}
+                {showDepartmentSubmit ? (
+                  <div className="flex flex-wrap items-center gap-2 rounded-md border border-border bg-muted/30 px-3 py-2 text-xs">
+                    <span className="text-muted-foreground">
+                      Finished your department’s lines? Submit them so the remaining departments can
+                      finish the invoice.
+                    </span>
+                    {outstanding.map((d) => (
+                      <Button
+                        key={String(d.id)}
+                        size="sm"
+                        variant="outline"
+                        onClick={() => submitMyDepartment(d.id, d.name)}
+                      >
+                        Submit {d.name} coding
+                      </Button>
+                    ))}
+                  </div>
                 ) : null}
                 <CodingTable
                   lines={lines}
