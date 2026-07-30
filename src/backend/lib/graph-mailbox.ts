@@ -174,11 +174,51 @@ type GraphAttachment = {
 }
 
 /**
- * The mailbox, as the pipeline sees it. `mailboxAddress` is the shared mailbox
- * from Settings, never a hardcoded value.
+ * Turns the address an administrator typed into something Graph will accept.
+ *
+ * `/users/{id}` resolves an object id or a userPrincipalName and NOTHING else —
+ * an SMTP address that happens to be a proxy alias returns 404, with no hint
+ * that the address was the problem. Shared mailboxes are created with a UPN on
+ * the tenant's `.onmicrosoft.com` domain and a friendly address on the vanity
+ * domain, so the two nearly always differ: an admin who types
+ * `invoices@city.ca` is handing us an address Graph has never heard of.
+ *
+ * So: look the address up by `mail` first and use the object id, which is
+ * stable even if the address is later renamed. Fall back to the raw value when
+ * the lookup finds nothing, because a real UPN is a legitimate thing to type
+ * and should keep working.
  */
-export function createGraphMailbox(config: GraphConfiguration, mailboxAddress: string): MailboxSource {
-  const owner = encodeURIComponent(mailboxAddress)
+export async function resolveMailboxId(
+  config: GraphConfiguration,
+  mailboxAddress: string,
+): Promise<string> {
+  const address = mailboxAddress.trim()
+  if (address === '') throw new Error('No mailbox address has been set.')
+
+  try {
+    const filter = encodeURIComponent(`mail eq '${address.replace(/'/g, "''")}'`)
+    const response = await graphFetch(config, `/users?$filter=${filter}&$select=id`)
+    const body = (await response.json()) as { value?: Array<{ id?: string }> }
+    const id = body.value?.[0]?.id
+    if (id) return id
+  } catch (err) {
+    // A failed lookup is not fatal — the address may already be a UPN, and the
+    // call below will say so far more clearly than this one can.
+    console.error('[graph-mailbox] could not look the mailbox up by address', {
+      reason: err instanceof Error ? err.message : String(err),
+    })
+  }
+
+  return address
+}
+
+/**
+ * The mailbox, as the pipeline sees it. `mailbox` is the object id or
+ * userPrincipalName resolved by `resolveMailboxId` — not the address from
+ * Settings, which Graph may not recognise.
+ */
+export function createGraphMailbox(config: GraphConfiguration, mailbox: string): MailboxSource {
+  const owner = encodeURIComponent(mailbox)
 
   return {
     async fetchMessage(messageId: string): Promise<IntakeMessage> {
@@ -236,12 +276,15 @@ export async function createMailboxSubscription(
   config: GraphConfiguration,
   mailboxAddress: string,
 ): Promise<GraphSubscription> {
+  // Resolved rather than used verbatim: the address an administrator typed is
+  // often a proxy alias that Graph does not recognise. See `resolveMailboxId`.
+  const mailbox = await resolveMailboxId(config, mailboxAddress)
   const response = await graphFetch(config, '/subscriptions', {
     method: 'POST',
     body: JSON.stringify({
       changeType: 'created',
       notificationUrl: config.notificationUrl,
-      resource: `users/${mailboxAddress}/mailFolders('inbox')/messages`,
+      resource: `users/${mailbox}/mailFolders('inbox')/messages`,
       expirationDateTime: subscriptionExpiry(new Date()),
       clientState: config.clientState,
       latestSupportedTlsVersion: 'v1_2',

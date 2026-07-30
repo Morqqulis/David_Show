@@ -12,7 +12,7 @@ import {
   readIntakeSettings,
   type IntakeSettingsDoc,
 } from '../lib/payload-intake-store'
-import { createGraphMailbox, readGraphConfiguration } from '../lib/graph-mailbox'
+import { createGraphMailbox, readGraphConfiguration, resolveMailboxId } from '../lib/graph-mailbox'
 import { createDocumentIntelligenceOcr, readDocumentIntelligenceConfig } from '../lib/document-intelligence'
 
 /**
@@ -64,7 +64,8 @@ export async function runIntakeForMessage(messageId: string): Promise<IntakeOutc
     throw new Error('No mailbox address has been set, so nothing can be collected.')
   }
 
-  const mailbox = createGraphMailbox(readGraphConfiguration(), settings.mailboxAddress)
+  const graph = readGraphConfiguration()
+  const mailbox = createGraphMailbox(graph, await resolveMailboxId(graph, settings.mailboxAddress))
   const ocr = createDocumentIntelligenceOcr(readDocumentIntelligenceConfig())
   const store = createPayloadIntakeStore(payload, actorId)
 
@@ -140,7 +141,8 @@ async function runIntakeForMessageBypassingPolicy(messageId: string): Promise<In
     senderPolicy: { mode: 'public', internalDomains: [] },
   })
 
-  const mailbox = createGraphMailbox(readGraphConfiguration(), settings.mailboxAddress)
+  const graph = readGraphConfiguration()
+  const mailbox = createGraphMailbox(graph, await resolveMailboxId(graph, settings.mailboxAddress))
   const ocr = createDocumentIntelligenceOcr(readDocumentIntelligenceConfig())
   return processMailboxNotification({ messageId, mailbox, ocr, store })
 }
