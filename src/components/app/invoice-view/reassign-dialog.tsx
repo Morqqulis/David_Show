@@ -248,8 +248,16 @@ export function ReassignDialog({
             <ReasonPicker scope="reassign" value={reason} onChange={setReason} id="reassign-reason" />
 
             <p className="rounded-md bg-muted/60 px-3 py-2 text-sm">
+              {/*
+                This summary deliberately does NOT promise an email. The
+                notification is composed and recorded, but this application has
+                no mail transport yet (see notifyNewAssignee in
+                reassign-actions.ts), so telling somebody an email is on its way
+                would be a plain untruth — and one a client would hear during a
+                demo. Put the clause back in the same commit that wires a sender.
+              */}
               {target && fromName
-                ? `Invoice ${ctx.invoice.invoiceNumber} moves from ${fromName} to ${target.name}. It stays in ${ctx.invoice.stageLabel}, anything already approved stays approved, and ${target.name} gets an email about it.`
+                ? `Invoice ${ctx.invoice.invoiceNumber} moves from ${fromName} to ${target.name}. It stays in ${ctx.invoice.stageLabel}, and anything already approved stays approved.`
                 : 'Choose a person to see what will happen.'}
             </p>
           </div>
