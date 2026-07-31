@@ -16,6 +16,8 @@
  *     to everybody.
  */
 
+import { UserFacingError } from '../../lib/action-result'
+
 export type GlSegmentSpec = {
   label: string
   length: number
@@ -52,7 +54,7 @@ const NUMERIC = /^\d+$/
 export function parseMask(mask: string, labels: string[], departmentSegmentIndex = 0): GlMask {
   const written = (mask ?? '').trim()
   if (!written) {
-    throw new Error('Enter a GL account format, for example XX-XXX-XXXX-XXXXX.')
+    throw new UserFacingError('Enter a GL account format, for example XX-XXX-XXXX-XXXXX.')
   }
 
   // Every character that is not an X is treated as the separator, and they all
@@ -61,7 +63,7 @@ export function parseMask(mask: string, labels: string[], departmentSegmentIndex
     new Set(written.split('').filter((ch) => !PLACEHOLDER_CHAR.test(ch))),
   )
   if (separators.length > 1) {
-    throw new Error(
+    throw new UserFacingError(
       `Use the same separator throughout — this format mixes "${separators.join('" and "')}".`,
     )
   }
@@ -70,7 +72,7 @@ export function parseMask(mask: string, labels: string[], departmentSegmentIndex
 
   const segments = parts.map((part, i) => {
     if (!ALL_PLACEHOLDERS.test(part)) {
-      throw new Error(
+      throw new UserFacingError(
         'Write each part of the format as a run of X characters, for example XX-XXX-XXXX-XXXXX.',
       )
     }
@@ -83,7 +85,7 @@ export function parseMask(mask: string, labels: string[], departmentSegmentIndex
     departmentSegmentIndex < 0 ||
     departmentSegmentIndex >= segments.length
   ) {
-    throw new Error(
+    throw new UserFacingError(
       `Choose which part of the code holds the sub-department — this format has ${segments.length} parts.`,
     )
   }

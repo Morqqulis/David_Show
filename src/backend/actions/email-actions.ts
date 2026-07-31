@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { getPayload } from '../lib/payload'
 import { sanitizeEmailHtml } from '../lib/email-html-sanitize'
 import { DEFAULT_EMAIL_WRAPPER, type EmailWrapper } from '../lib/email-render'
+import { guard, UserFacingError, type ActionResult } from '../../lib/action-result'
 
 /**
  * Server actions behind the Email screens.
@@ -31,12 +32,19 @@ export type EmailTemplateInput = {
 
 function requireText(value: string, field: string): string {
   const trimmed = value.trim()
-  if (!trimmed) throw new Error(`${field} cannot be empty.`)
-  if (trimmed.length > 200) throw new Error(`${field} is too long.`)
+  if (!trimmed) throw new UserFacingError(`${field} cannot be empty.`)
+  if (trimmed.length > 200) throw new UserFacingError(`${field} is too long.`)
   return trimmed
 }
 
 export async function saveEmailTemplate(
+  id: string | number | null,
+  input: EmailTemplateInput,
+): Promise<ActionResult<UpsertResult>> {
+  return guard(() => runSaveEmailTemplate(id, input))
+}
+
+async function runSaveEmailTemplate(
   id: string | number | null,
   input: EmailTemplateInput,
 ): Promise<UpsertResult> {
@@ -60,18 +68,22 @@ export async function saveEmailTemplate(
     return { id: created.id }
   } catch (err) {
     console.error('[email-templates] save failed', { id, name: data.name, err })
-    throw new Error('The template could not be saved.')
+    throw new UserFacingError('The template could not be saved.')
   }
 }
 
-export async function deleteEmailTemplateById(id: string | number): Promise<void> {
+export async function deleteEmailTemplateById(id: string | number): Promise<ActionResult<void>> {
+  return guard(() => runDeleteEmailTemplateById(id))
+}
+
+async function runDeleteEmailTemplateById(id: string | number): Promise<void> {
   try {
     const payload = await getPayload()
     await payload.delete({ collection: 'email-templates', id: id as never })
     revalidatePath('/email/templates')
   } catch (err) {
     console.error('[email-templates] delete failed', { id, err })
-    throw new Error('The template could not be deleted.')
+    throw new UserFacingError('The template could not be deleted.')
   }
 }
 
@@ -104,7 +116,11 @@ export async function loadEmailWrapper(): Promise<EmailWrapper> {
   }
 }
 
-export async function saveEmailWrapper(input: EmailWrapper): Promise<UpsertResult> {
+export async function saveEmailWrapper(input: EmailWrapper): Promise<ActionResult<UpsertResult>> {
+  return guard(() => runSaveEmailWrapper(input))
+}
+
+async function runSaveEmailWrapper(input: EmailWrapper): Promise<UpsertResult> {
   const data = {
     fromName: requireText(input.fromName, 'Sender name'),
     fromEmail: requireEmail(input.fromEmail, 'From address'),
@@ -134,7 +150,7 @@ export async function saveEmailWrapper(input: EmailWrapper): Promise<UpsertResul
     return { id: created.id }
   } catch (err) {
     console.error('[email-settings] save failed', { fromEmail: data.fromEmail, err })
-    throw new Error('The email settings could not be saved.')
+    throw new UserFacingError('The email settings could not be saved.')
   }
 }
 
@@ -146,6 +162,8 @@ function revalidateEmailScreens(): void {
 
 function requireEmail(value: string, field: string): string {
   const trimmed = value.trim()
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) throw new Error(`${field} is not a valid email address.`)
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+    throw new UserFacingError(`${field} is not a valid email address.`)
+  }
   return trimmed
 }

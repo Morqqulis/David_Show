@@ -2,6 +2,7 @@
 
 import { useRef, useState, useTransition } from 'react'
 import { toast } from 'sonner'
+import { unwrap } from '@/lib/action-result'
 import { FileUp, Play } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
@@ -68,7 +69,7 @@ export function IntakeTestConsole({ setup }: { setup: CheckSetup }) {
     setBusy(commit ? 'create' : 'check')
     startTransition(async () => {
       try {
-        const result = await runIntakeCheck(form)
+        const result = unwrap(await runIntakeCheck(form))
         setReport(result)
         toast.success(
           commit

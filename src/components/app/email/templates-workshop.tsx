@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
+import { unwrap } from '@/lib/action-result'
 import { deleteEmailTemplateById, saveEmailTemplate } from '@/backend/actions/email-actions'
 import type { EmailWrapper } from '@/backend/lib/email-render'
 import { EmailPreview } from './email-preview'
@@ -76,7 +77,7 @@ export function TemplatesWorkshop({
 
     startTransition(async () => {
       try {
-        const created = await saveEmailTemplate(null, toInput(row))
+        const created = unwrap(await saveEmailTemplate(null, toInput(row)))
         const realId = String(created.id)
         setRows((cur) => cur.map((r) => (r.id === tmpId ? { ...r, id: created.id } : r)))
         setActiveId((cur) => (cur === tmpId ? realId : cur))
@@ -107,7 +108,7 @@ export function TemplatesWorkshop({
       try {
         // A template created moments ago may still be waiting for its real id;
         // saving it as an update would address a row that does not exist yet.
-        await saveEmailTemplate(isPending(target.id) ? null : target.id, toInput(target))
+        unwrap(await saveEmailTemplate(isPending(target.id) ? null : target.id, toInput(target)))
         toast.success('Saved', { id: TOAST_ID, duration: 1500 })
       } catch (err) {
         console.error('[email-templates] save failed', { id: target.id, name: target.name, err })
@@ -137,7 +138,7 @@ export function TemplatesWorkshop({
 
     startTransition(async () => {
       try {
-        await deleteEmailTemplateById(target.id)
+        unwrap(await deleteEmailTemplateById(target.id))
         toast.success('Template deleted', { id: TOAST_ID, duration: 1500 })
       } catch (err) {
         console.error('[email-templates] delete failed', { id: target.id, err })

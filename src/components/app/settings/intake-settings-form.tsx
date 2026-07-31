@@ -2,6 +2,7 @@
 
 import { useRef, useState, useTransition } from 'react'
 import { toast } from 'sonner'
+import { unwrap } from '@/lib/action-result'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -38,17 +39,19 @@ export function IntakeSettingsForm({ value }: { value: IntakeSettingsValue }) {
 
     startTransition(async () => {
       try {
-        await saveIntakeSettings({
-          enabled: next.enabled,
-          mailboxAddress: next.mailboxAddress,
-          senderPolicy: next.senderPolicy,
-          internalDomains: next.internalDomains
-            .split(/[\s,]+/)
-            .map((d) => d.trim())
-            .filter(Boolean),
-          confidenceThreshold: next.confidencePercent / 100,
-          amountTolerance: next.amountTolerance,
-        })
+        unwrap(
+          await saveIntakeSettings({
+            enabled: next.enabled,
+            mailboxAddress: next.mailboxAddress,
+            senderPolicy: next.senderPolicy,
+            internalDomains: next.internalDomains
+              .split(/[\s,]+/)
+              .map((d) => d.trim())
+              .filter(Boolean),
+            confidenceThreshold: next.confidencePercent / 100,
+            amountTolerance: next.amountTolerance,
+          }),
+        )
         toast.success('Mailbox settings saved', { id: TOAST_ID, duration: 1500 })
       } catch (err) {
         lastSaved.current = previous
@@ -229,7 +232,7 @@ export function MailboxConnection({
   function connect() {
     startTransition(async () => {
       try {
-        const result = await startMailboxWatch()
+        const result = unwrap(await startMailboxWatch())
         setLive(true)
         setRenewsOn(result.expiresAt)
         toast.success('Connected — new invoices will start arriving', {
@@ -251,7 +254,7 @@ export function MailboxConnection({
     setLive(false)
     startTransition(async () => {
       try {
-        await stopMailboxWatch()
+        unwrap(await stopMailboxWatch())
         setRenewsOn(null)
         toast.success('Disconnected — nothing new will be collected', {
           id: CONNECTION_TOAST_ID,

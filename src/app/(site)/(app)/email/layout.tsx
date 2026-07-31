@@ -1,4 +1,3 @@
-import Link from 'next/link'
 import { Topbar } from '@/components/app/topbar'
 import { PageHeader } from '@/components/app/page-header'
 import { EmailNav } from '@/components/app/email-nav'

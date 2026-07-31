@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { getPayload } from '../lib/payload'
+import { guard, UserFacingError, type ActionResult } from '../../lib/action-result'
 import { REASON_SCOPES, type ReasonScope } from '../collections/ActionReasons'
 
 /**
@@ -86,6 +87,10 @@ export async function fetchAllReasonLists(): Promise<ReasonList[]> {
  * audit trail. Returns null when nothing was given and nothing was demanded;
  * throws when the scope's policy demands one, so a client that forgets to
  * validate cannot skip the requirement.
+ *
+ * Only other actions call this, and each of them is guarded, so the refusals
+ * below are raised rather than returned and are converted by whichever entry
+ * point the person actually pressed.
  */
 export async function resolveReasonText(
   scope: ReasonScope,
@@ -96,17 +101,17 @@ export async function resolveReasonText(
   const detail = (otherText ?? '').trim()
 
   if (!reasonId) {
-    if (list.required) throw new Error('A reason is required before this can be saved.')
+    if (list.required) throw new UserFacingError('A reason is required before this can be saved.')
     return detail.length > 0 ? detail : null
   }
 
   const option = list.options.find((o) => String(o.id) === String(reasonId))
   if (!option) {
     console.error('[reasons] a reason was submitted that is not on the list', { scope, reasonId })
-    throw new Error('That reason is no longer available. Pick another one.')
+    throw new UserFacingError('That reason is no longer available. Pick another one.')
   }
   if (option.isOther) {
-    if (detail.length === 0) throw new Error('Type the reason in the box before saving.')
+    if (detail.length === 0) throw new UserFacingError('Type the reason in the box before saving.')
     return `${option.label} — ${detail}`
   }
   return option.label
@@ -118,11 +123,18 @@ type UpsertResult = { id: string | number }
 export async function upsertReason(
   id: string | number | null,
   patch: Record<string, unknown>,
+): Promise<ActionResult<UpsertResult>> {
+  return guard(() => runUpsertReason(id, patch))
+}
+
+async function runUpsertReason(
+  id: string | number | null,
+  patch: Record<string, unknown>,
 ): Promise<UpsertResult> {
   const payload = await getPayload()
   const label = typeof patch.label === 'string' ? patch.label.trim() : ''
-  if (id === null && label.length === 0) throw new Error('Give the reason a name before saving it.')
-  if ('label' in patch && label.length === 0) throw new Error('A reason cannot have an empty name.')
+  if (id === null && label.length === 0) throw new UserFacingError('Give the reason a name before saving it.')
+  if ('label' in patch && label.length === 0) throw new UserFacingError('A reason cannot have an empty name.')
 
   // `isOther` and `kind` are never client-settable: a second Other row, or an
   // option masquerading as the scope policy, would corrupt the list quietly.
@@ -148,7 +160,11 @@ export async function upsertReason(
 }
 
 /** Delete one reason option. Other is permanent and is refused here. */
-export async function deleteReason(id: string | number): Promise<void> {
+export async function deleteReason(id: string | number): Promise<ActionResult<void>> {
+  return guard(() => runDeleteReason(id))
+}
+
+async function runDeleteReason(id: string | number): Promise<void> {
   const payload = await getPayload()
   const doc = (await payload.findByID({
     collection: 'action-reasons' as never,
@@ -156,11 +172,11 @@ export async function deleteReason(id: string | number): Promise<void> {
   })) as unknown as ReasonDoc
   if (doc?.isOther) {
     console.error('[reasons] refused to delete the built-in Other option', { id })
-    throw new Error('Other is built in and cannot be removed. Switch it off instead.')
+    throw new UserFacingError('Other is built in and cannot be removed. Switch it off instead.')
   }
   if (doc?.kind === 'policy') {
     console.error('[reasons] refused to delete a scope policy row', { id })
-    throw new Error('That row holds the setting for this list and cannot be removed.')
+    throw new UserFacingError('That row holds the setting for this list and cannot be removed.')
   }
   await payload.delete({ collection: 'action-reasons' as never, id: id as never })
   revalidatePath('/settings/reasons')

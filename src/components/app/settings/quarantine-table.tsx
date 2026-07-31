@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { toast } from 'sonner'
+import { unwrap } from '@/lib/action-result'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -47,7 +48,7 @@ export function QuarantineTable({ rows: initialRows }: { rows: HeldMessage[] }) 
 
     startTransition(async () => {
       try {
-        const result = await releaseQuarantinedMessage(row.id)
+        const result = unwrap(await releaseQuarantinedMessage(row.id))
         toast.success(
           result.created === 1
             ? 'Released — one invoice was created'

@@ -14,6 +14,7 @@ import {
 } from '../lib/payload-intake-store'
 import { createGraphMailbox, readGraphConfiguration, resolveMailboxId } from '../lib/graph-mailbox'
 import { createDocumentIntelligenceOcr, readDocumentIntelligenceConfig } from '../lib/document-intelligence'
+import { guard, UserFacingError, type ActionResult } from '../../lib/action-result'
 
 /**
  * The entry points that drive email intake.
@@ -79,7 +80,13 @@ export async function runIntakeForMessage(messageId: string): Promise<IntakeOutc
 }
 
 /** An admin decided a held message is genuine. It runs the normal intake path. */
-export async function releaseQuarantinedMessage(id: string | number): Promise<{ created: number }> {
+export async function releaseQuarantinedMessage(
+  id: string | number,
+): Promise<ActionResult<{ created: number }>> {
+  return guard(() => runReleaseQuarantinedMessage(id))
+}
+
+async function runReleaseQuarantinedMessage(id: string | number): Promise<{ created: number }> {
   const payload = await getPayload()
   const actorId = await defaultActorId(payload)
   const held = (await payload.findByID({
@@ -109,7 +116,9 @@ export async function releaseQuarantinedMessage(id: string | number): Promise<{ 
       data: { releaseError: reason } as never,
     })
     revalidatePath('/settings/quarantine')
-    throw new Error(reason)
+    // The reason is already recorded on the held message; showing the same
+    // words in the toast saves the admin a trip to the row they just clicked.
+    throw new UserFacingError(reason)
   }
 }
 

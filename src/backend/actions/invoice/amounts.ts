@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { getPayload } from '../../lib/payload'
 import { recordAudit } from '../../lib/stage-engine'
 import { round2 } from '../../lib/tax-math'
+import { guard, UserFacingError, type ActionResult } from '../../../lib/action-result'
 import { defaultActorId } from './_helpers'
 
 export type InvoiceAmounts = {
@@ -27,6 +28,13 @@ export type InvoiceAmounts = {
 export async function updateInvoiceAmounts(
   invoiceId: string | number,
   amounts: InvoiceAmounts,
+): Promise<ActionResult<InvoiceAmounts>> {
+  return guard(() => runUpdateInvoiceAmounts(invoiceId, amounts))
+}
+
+async function runUpdateInvoiceAmounts(
+  invoiceId: string | number,
+  amounts: InvoiceAmounts,
 ): Promise<InvoiceAmounts> {
   const next = {
     subtotal: round2(Number(amounts.subtotal)),
@@ -37,11 +45,11 @@ export async function updateInvoiceAmounts(
   for (const [key, value] of Object.entries(next)) {
     if (!Number.isFinite(value)) {
       console.error('[invoice-amounts] rejected non-numeric amount', { invoiceId, key })
-      throw new Error('Amounts must be numbers.')
+      throw new UserFacingError('Amounts must be numbers.')
     }
     if (value < 0) {
       console.error('[invoice-amounts] rejected negative amount', { invoiceId, key, value })
-      throw new Error('Amounts cannot be negative. Use a credit note for a refund.')
+      throw new UserFacingError('Amounts cannot be negative. Use a credit note for a refund.')
     }
   }
 
@@ -66,7 +74,7 @@ export async function updateInvoiceAmounts(
     existingFlags = current.flags ?? {}
   } catch (err) {
     console.error('[invoice-amounts] invoice not found', { invoiceId, err })
-    throw new Error('That invoice could not be found.')
+    throw new UserFacingError('That invoice could not be found.')
   }
 
   // Correcting the figures has to move the "amounts do not add up" flag with
@@ -84,7 +92,7 @@ export async function updateInvoiceAmounts(
     })
   } catch (err) {
     console.error('[invoice-amounts] update failed', { invoiceId, err })
-    throw new Error('The amounts could not be saved. Nothing was changed.')
+    throw new UserFacingError('The amounts could not be saved. Nothing was changed.')
   }
 
   // The intake audit entry is the only record of what OCR originally produced,

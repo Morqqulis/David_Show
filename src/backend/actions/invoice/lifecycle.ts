@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { getPayload } from '../../lib/payload'
 import { recordAudit } from '../../lib/stage-engine'
+import { guard, type ActionResult } from '../../../lib/action-result'
 import { resolveReasonText } from '../reason-actions'
 import { defaultActorId } from './_helpers'
 
@@ -18,7 +19,15 @@ export async function softDeleteInvoice(
   invoiceId: string | number,
   reasonId: string | number | null,
   otherText?: string,
-) {
+): Promise<ActionResult<void>> {
+  return guard(() => runSoftDeleteInvoice(invoiceId, reasonId, otherText))
+}
+
+async function runSoftDeleteInvoice(
+  invoiceId: string | number,
+  reasonId: string | number | null,
+  otherText?: string,
+): Promise<void> {
   const reason = await resolveReasonText('cancel', reasonId, otherText)
   const payload = await getPayload()
   const actorId = await defaultActorId()

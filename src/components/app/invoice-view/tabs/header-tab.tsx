@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react'
 import { Pencil } from 'lucide-react'
 import { toast } from 'sonner'
+import { unwrap } from '@/lib/action-result'
 import { Money } from '../../money'
 import { OcrLegend, OcrValue } from '../../ocr-value'
 import { Button } from '@/components/ui/button'
@@ -81,7 +82,7 @@ export function HeaderTab({ inv }: { inv: InvoiceViewInvoice }) {
 
     startSaving(async () => {
       try {
-        const saved = await updateInvoiceAmounts(inv.id, parsed)
+        const saved = unwrap(await updateInvoiceAmounts(inv.id, parsed))
         setAmounts(saved)
         // A person has now checked these figures against the document, so they
         // stop being machine readings and the marks come off.

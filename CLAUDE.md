@@ -1,8 +1,8 @@
 # AuroraAP (ap_invoice) — Project Reference
 
-This document is the handoff for the next Claude session. Read it top to bottom before touching code. It records what is actually true about this codebase today (2026-07-29) and everything that has bitten us so far.
+This document is the handoff for the next Claude session. Read it top to bottom before touching code. It records what is actually true about this codebase today (2026-07-31) and everything that has bitten us so far.
 
-**Honest one-paragraph summary**: AuroraAP is a municipal Accounts Payable workflow demo for the City of Aurora. Eleven client feedback items were implemented in the last session, and the app is substantially more complete than it was: email intake with OCR, reassignment, server-side filtering and saved views on All Requests, a rich email template editor, a GL-to-department restriction model, and a coding-completeness gate that actually fires. It is still **not production-ready** for one overriding reason: **there is no auth layer** — every route is publicly accessible to anyone with the URL. Do not claim runtime verification you did not perform — see [§10](#10-verification-handoff-mandatory) and [§14](#14-things-previous-sessions-got-wrong-learn-from-these).
+**Honest one-paragraph summary**: AuroraAP is a municipal Accounts Payable workflow demo for the City of Aurora. Eleven client feedback items were implemented in the last session, and the app is substantially more complete than it was: email intake with OCR, reassignment, server-side filtering and saved views on All Requests, a rich email template editor, a GL-to-department restriction model, and a coding-completeness gate that actually fires. It is still **not production-ready** for one overriding reason: **there is no auth layer** — every route is publicly accessible to anyone with the URL. Since then one class of defect has been swept out: every message a server action wrote for a person was being replaced by a generic framework notice in production, including the coding gate's configured block message (§6.17); and the lint backlog went from 42 problems to one unfixable warning (§8.2). Do not claim runtime verification you did not perform — see [§10](#10-verification-handoff-mandatory) and [§14](#14-things-previous-sessions-got-wrong-learn-from-these).
 
 **A stale handoff file is worse than no handoff file.** This document was trusted while out of date once and that directly caused a shipped regression. If you change behaviour, change this file in the same session.
 
@@ -34,7 +34,7 @@ This document is the handoff for the next Claude session. Read it top to bottom 
 | Toasts | Sonner | 2.0.7 | Used with deduped `id` to prevent toast-spam. |
 | Stores | Zustand | 5.0.13 | Cross-component UI state ([src/stores/](src/stores/)). |
 | Icons | Lucide | 1.16.0 (v1, breaking) | No `LucideIcon` type export — use `typeof <Icon>` instead. |
-| Tests | **`bun test`** (built in) | Bun 1.3.14 | **No test-runner dependency was added.** `@types/bun` is a devDependency purely for types. 16 test files — see §8.3. |
+| Tests | **`bun test`** (built in) | Bun 1.3.14 | **No test-runner dependency was added.** `@types/bun` is a devDependency purely for types. 17 test files — see §8.3. |
 | Package manager | **Bun** | (bun.lock present) | `packageManager: "pnpm@11.1.2"` in package.json is **stale/wrong**. Use `bun add`/`bun remove`, never edit deps by hand. |
 
 ---
@@ -94,7 +94,7 @@ ap_invoice/
 │   │   │   ├── duplicate-detection.ts  graph-mailbox.ts  document-intelligence.ts
 │   │   │   ├── email-tokens.ts  email-render.ts  email-html-sanitize.ts
 │   │   │   ├── stage-engine.ts  stage-ids.ts  tax-math.ts  formatting.ts  payload.ts
-│   │   │   └── *.test.ts               ← 16 test files, run by `bun test`
+│   │   │   └── *.test.ts               ← 17 test files, run by `bun test`
 │   │   └── seed/                   ← seedAll (full) + seedConfiguration (additive) — see §5.5
 │   ├── components/
 │   │   ├── ui/                     ← shadcn primitives + data-table/
@@ -330,7 +330,7 @@ Removing all three (plus the retired `CodingRestrictions` tables) is a single de
 
 **Fix**: `'use no memo'` as the first statement of the function body.
 
-**Currently applied in**: [column-header.tsx](src/components/ui/data-table/column-header.tsx), [view-options.tsx](src/components/ui/data-table/view-options.tsx), [invoice-table/toolbar.tsx](src/components/app/invoice-table/toolbar.tsx).
+**Currently applied in**: [column-header.tsx](src/components/ui/data-table/column-header.tsx), [view-options.tsx](src/components/ui/data-table/view-options.tsx), [invoice-table/toolbar.tsx](src/components/app/invoice-table/toolbar.tsx), [ui/carousel.tsx](src/components/ui/carousel.tsx) (same trap, different library — Embla's `api` handle is stable while `canScrollPrev()` is not).
 
 **Additionally**: DataTable's row rendering is INLINE. A prior extracted `<RowGroup>` was the source of the original row-checkbox bug — extracting created a memoization boundary. **DO NOT** extract row rendering unless you also add `'use no memo'`.
 
@@ -455,6 +455,48 @@ Related: the queue now travels in the address (`?tab=`), not only in the store, 
 
 The workflow settings table shows badges like `to_be_coded`, `ap_review` next to each stage label. Useful for admin/dev, **not** appropriate for client demos. Same risk: ID columns in tables, `tmp-…` client-side temp IDs that may briefly flash, raw stack traces in error toasts. Still open — see §7.4.
 
+### 6.17. A server action must RETURN a user-facing refusal, never throw it
+
+**Next.js replaces the message of any error thrown out of a server action with a generic notice in a production build.** This is long-standing framework behaviour, not a regression — it exists so internals cannot leak. Found by clicking the "Collect invoices from this mailbox" toggle on the deployed demo: instead of *"Enter the mailbox address before switching email intake on."* the toast read *"An error occurred in the Server Components render. The specific message is omitted in production builds…"*.
+
+It was never visible in development, where messages are passed through, and no green check can see it — `tsc`, `eslint` and `bun test` all agree the code is correct, because it is. The words simply do not survive the wire.
+
+**Measured, on a real production build**, POSTing the same action twice — once guarded, once not:
+
+```
+1:{"ok":false,"message":"Enter the mailbox address before switching email intake on."}   ← returned
+1:E{"digest":"454068550"}                                                                ← thrown
+```
+
+**The rule**: separate the two kinds of failure.
+
+| Kind | How | What the person sees |
+|---|---|---|
+| **Expected refusal** — the person can fix it | `throw new UserFacingError('…')` inside a body wrapped in `guard()` | the words, verbatim |
+| **Fault** — a bug, a missing row, a broken invariant | `throw new Error('…')` as before | the generic notice, correctly |
+
+The mechanism is [action-result.ts](src/lib/action-result.ts) — dependency-free, so a server action, a client component and a test can all import it:
+
+```ts
+// action
+export async function saveThing(patch: Patch): Promise<ActionResult<{ id: Id }>> {
+  return guard(() => runSaveThing(patch))
+}
+async function runSaveThing(patch: Patch) {
+  if (!patch.name) throw new UserFacingError('Give it a name before saving.')
+  …
+}
+
+// call site — the surrounding try/catch keeps working unchanged
+try { unwrap(await saveThing(patch)) } catch (err) { toast.error((err as Error).message) }
+```
+
+`guard` rethrows anything that is not a `UserFacingError`, which is what keeps `redirect()` and `notFound()` working — both are implemented as thrown control-flow errors.
+
+**The trap when converting, and it is the dangerous half**: `tsc` finds every call site that *reads* the result, and finds **none** of the call sites that merely `await` a void action. Those compile fine and silently swallow the refusal — strictly worse than before, because the person now sees no message at all instead of a confusing one. Thirteen of the twenty-six call sites in this codebase were of that kind, including `approveInvoice` in [use-ap-queries.ts](src/hooks/use-ap-queries.ts), which carries the coding gate's configured block message. **Grep for every converted action by name; do not trust the type-checker alone.**
+
+`UserFacingError` carries a plain `isUserFacing` property as well as its class identity, because `instanceof` fails if the module is ever evaluated in two bundles.
+
 ---
 
 ## 7. Known gaps (NOT done — be honest about these)
@@ -534,37 +576,31 @@ bun run dev
 
 ```sh
 bunx tsc --noEmit    # exit 0, no output, as of this session
-bun run lint         # exit 1 — see below
+bun run lint         # 0 errors, 1 warning — see below
 ```
 
-**`bun run lint` currently exits 1 with 42 problems (38 errors, 4 warnings).** All of them are pre-existing or informational; none is in code written last session. Full breakdown, re-run and recorded this session:
+**The lint backlog was cleared this session: 42 problems (38 errors, 4 warnings) → 1 warning.** What each fix actually was, because several are worth copying rather than re-deriving:
 
-| File | Count | Rule |
+| File | Was | Fix |
 |---|---|---|
-| [dashboard/page.tsx](src/app/(site)/(app)/dashboard/page.tsx) | 29 errors | `react-hooks/error-boundaries` |
-| [alerts/page.tsx](src/app/(site)/(app)/alerts/page.tsx) | 1 error | `react/no-unescaped-entities` |
-| [trash/page.tsx](src/app/(site)/(app)/trash/page.tsx) | 1 error | `react/no-unescaped-entities` |
-| [dashboard/seed-prompt.tsx](src/components/app/dashboard/seed-prompt.tsx) | 1 error | `react/no-unescaped-entities` |
-| [settings/approval-rules/page.tsx](src/app/(site)/(app)/settings/approval-rules/page.tsx) | 1 error | `@next/next/no-html-link-for-pages` |
-| [settings/roles/page.tsx](src/app/(site)/(app)/settings/roles/page.tsx) | 1 error | `@next/next/no-html-link-for-pages` |
-| [settings/config-stub.tsx](src/components/app/settings/config-stub.tsx) | 1 error | `@next/next/no-html-link-for-pages` |
-| [coding-screen/index.tsx](src/components/app/coding-screen/index.tsx) | 1 error | `react-hooks/set-state-in-effect` |
-| [ui/carousel.tsx](src/components/ui/carousel.tsx) | 1 error | `react-hooks/set-state-in-effect` |
-| [hooks/use-mobile.ts](src/hooks/use-mobile.ts) | 1 error | `react-hooks/set-state-in-effect` |
-| [email/layout.tsx](src/app/(site)/(app)/email/layout.tsx) | 1 warning | `@typescript-eslint/no-unused-vars` |
-| [settings/layout.tsx](src/app/(site)/(app)/settings/layout.tsx) | 1 warning | `@typescript-eslint/no-unused-vars` |
-| [pdf-preview.tsx](src/components/app/pdf-preview.tsx) | 1 warning | `@next/next/no-img-element` |
-| [data-table/index.tsx](src/components/ui/data-table/index.tsx) | 1 warning | `react-hooks/incompatible-library` |
+| [dashboard/page.tsx](src/app/(site)/(app)/dashboard/page.tsx) | 29 × `react-hooks/error-boundaries` | The whole page's JSX sat inside a `try`. The `try` now wraps the data read alone and the markup renders after it. The rule is right: a render that throws inside a `try` never reaches the `catch`, so that fallback was a promise the page could not keep. |
+| [use-mobile.ts](src/hooks/use-mobile.ts) | `react-hooks/set-state-in-effect` | Rewritten on `useSyncExternalStore`. The effect version also measured the viewport a render late, so a phone saw the desktop layout for one frame. |
+| [coding-screen/index.tsx](src/components/app/coding-screen/index.tsx) | `react-hooks/set-state-in-effect` | "Re-seed rows when the server sends new ones" moved from an effect to adjusting state during render, which is React's own documented answer for resetting state on a prop change. |
+| [ui/carousel.tsx](src/components/ui/carousel.tsx) | `react-hooks/set-state-in-effect` | Arrow-enabled flags are read from Embla during render instead of copied into state; a `useReducer` tick redraws on Embla's events. Needed `'use no memo'` (§6.3) — `api` has a stable identity, so the compiler would have cached the method calls and frozen the arrows. **Nothing in the app imports this component**; it arrived with the shadcn set. Fixed rather than deleted, but it is a fair candidate for removal along with `embla-carousel-react`. |
+| 3 pages with `<a href="/admin">` | `@next/next/no-html-link-for-pages` | `next/link`. `/admin` is a route in this same app, and Next handles the root-layout boundary with a hard navigation by itself. |
+| 3 pages with a raw `'` | `react/no-unescaped-entities` | `&apos;`. |
+| 2 layouts | unused `Link` import | Removed. |
+| [pdf-preview.tsx](src/components/app/pdf-preview.tsx) | `@next/next/no-img-element` | Scoped `eslint-disable-next-line` with the reason in place: `next/image` needs the intrinsic size up front and a scan arrives at whatever size the scanner produced. |
 
-The `incompatible-library` warning on `useReactTable` is informational: TanStack Table returns functions that cannot be memoized, so React Compiler skips the component. That is expected and related to §6.3.
+**The one remaining warning is not fixable and should stay**: `react-hooks/incompatible-library` on `useReactTable` in [data-table/index.tsx](src/components/ui/data-table/index.tsx). TanStack Table returns functions that cannot be memoized, so React Compiler skips the component. Expected, and the root of §6.3.
 
-**Treat any NEW file appearing in this table as your regression.** `react-hooks/immutability` and `react-hooks/set-state-in-effect` errors in new code are the precise class of defect that `tsc` and `bun test` cannot see and that burned a previous session.
+**`bun run lint` is now a real gate. Any new error is yours.** `react-hooks/immutability` and `react-hooks/set-state-in-effect` in new code are the precise class of defect that `tsc` and `bun test` cannot see and that burned a previous session.
 
 ### 8.3. Run tests
 
 ```sh
 bun test
-# 305 pass, 0 fail, 795 expect() calls, 16 files — exit 0 as of this session
+# 316 pass, 0 fail, 810 expect() calls, 17 files — exit 0 as of this session
 ```
 
 `bun test` is Bun's built-in runner. **No test dependency was installed**; `@types/bun` is a devDependency for types only, and it is the single change to `package.json` in the whole session.
@@ -627,6 +663,24 @@ To fill empty configuration tables without destroying invoices, use `POST /api/s
 ---
 
 ## 9. Change log
+
+### 9.0. Session of 2026-07-31 — production error messages, and the lint backlog
+
+Two things, both found by clicking rather than by any check.
+
+**1. Every user-facing message from a server action was being replaced in production (§6.17).** Reported from the deployed demo: the "Collect invoices from this mailbox" toggle showed a wall of framework text instead of "Enter the mailbox address before switching email intake on." 55 `throw new Error` sites across 12 action files were affected. About 45 carried words written for a person, and each one was showing the same generic notice.
+
+The worst of them was the coding gate: **item 5's stated requirement — "Block stops the transition and shows the configured message" — was broken in production**, though it had been proven working in development, where messages are not redacted.
+
+Fixed by separating expected refusals from faults: [action-result.ts](src/lib/action-result.ts) with `UserFacingError` / `guard` / `unwrap`, applied to 12 action files and 2 lib engines ([segments.ts](src/backend/lib/segments.ts), [gl-department-routing.ts](src/backend/lib/gl-department-routing.ts) — the GL restriction refusals were affected too), plus all 26 call sites. Thirteen of those call sites were invisible to `tsc`; see the warning in §6.17.
+
+Proven against a real production build, not inferred — the returned message arrives whole while a thrown one arrives as a bare digest.
+
+**2. The lint backlog was cleared**, 42 problems → 1 unfixable warning. Table of what each fix was in §8.2. `bun run lint` is now a real gate rather than a known-noisy command.
+
+Also: three GL restriction messages and four GL-format messages now reach the screen for the first time, since they were thrown from lib modules and had never survived to production either.
+
+**Not verified**: no browser was driven. The one behaviour proven end to end is the mailbox toggle's message, by POSTing the action against a production build. Everything click-level goes to the user.
 
 ### 9.1. Session of 2026-07-29 — the eleven client feedback items
 
@@ -741,6 +795,7 @@ Demo-fragile bits to know about: intake cannot be shown end to end without a liv
 | Cached SSR queries + fetchRequestsPage | [queries.ts](src/backend/lib/queries.ts) |
 | Settings server actions | [settings-actions.ts](src/backend/actions/settings-actions.ts) |
 | Left-nav route predicates | [requests-routes.ts](src/lib/requests-routes.ts) |
+| Server-action refusals that survive production | [action-result.ts](src/lib/action-result.ts) |
 | Payload config | [payload.config.ts](src/payload.config.ts) |
 | Collections registry | [collections/index.ts](src/backend/collections/index.ts) |
 | Stage constants + gate predicate | [stage-ids.ts](src/backend/lib/stage-ids.ts) |

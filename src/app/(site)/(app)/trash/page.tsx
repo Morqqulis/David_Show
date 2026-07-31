@@ -26,7 +26,7 @@ export default async function TrashPage() {
           <CardHeader>
             <CardTitle>Deleted records</CardTitle>
             <CardDescription>
-              Records stay in the database for audit purposes — they're hidden from default views but never erased.
+              Records stay in the database for audit purposes — they&apos;re hidden from default views but never erased.
             </CardDescription>
           </CardHeader>
           <CardContent>

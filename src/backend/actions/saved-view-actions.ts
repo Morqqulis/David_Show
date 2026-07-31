@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { getPayload } from '../lib/payload'
 import { SAVED_VIEW_LIMIT, type SavedViewSpec } from '../lib/invoice-filters'
+import { guard, UserFacingError, type ActionResult } from '../../lib/action-result'
 
 /**
  * Personal saved views for the All Requests table.
@@ -26,7 +27,7 @@ async function currentActorId(): Promise<string | number> {
   const actor = res.docs[0]?.id
   if (actor == null) {
     console.error('[saved-views] no operator account found', { email: ACTOR_EMAIL })
-    throw new Error('No account is available to own this view.')
+    throw new UserFacingError('No account is available to own this view.')
   }
   return actor
 }
@@ -48,7 +49,9 @@ async function assertRoom(ownerId: string | number) {
     where: { owner: { equals: ownerId } } as never,
   })
   if (existing.totalDocs >= SAVED_VIEW_LIMIT) {
-    throw new Error(`You already have ${SAVED_VIEW_LIMIT} saved views. Delete one before adding another.`)
+    throw new UserFacingError(
+      `You already have ${SAVED_VIEW_LIMIT} saved views. Delete one before adding another.`,
+    )
   }
 }
 
@@ -74,9 +77,16 @@ async function clearOtherDefaults(ownerId: string | number, keepId: string | num
   )
 }
 
-export async function createSavedView(name: string, spec: SavedViewSpec): Promise<{ id: string | number }> {
+export async function createSavedView(
+  name: string,
+  spec: SavedViewSpec,
+): Promise<ActionResult<{ id: string | number }>> {
+  return guard(() => runCreateSavedView(name, spec))
+}
+
+async function runCreateSavedView(name: string, spec: SavedViewSpec): Promise<{ id: string | number }> {
   const trimmed = name.trim()
-  if (!trimmed) throw new Error('Give the view a name before saving it.')
+  if (!trimmed) throw new UserFacingError('Give the view a name before saving it.')
   const payload = await getPayload()
   const owner = await currentActorId()
   await assertRoom(owner)
@@ -99,9 +109,13 @@ export async function updateSavedViewSpec(id: string | number, spec: SavedViewSp
   revalidatePath('/requests')
 }
 
-export async function renameSavedView(id: string | number, name: string) {
+export async function renameSavedView(id: string | number, name: string): Promise<ActionResult<void>> {
+  return guard(() => runRenameSavedView(id, name))
+}
+
+async function runRenameSavedView(id: string | number, name: string): Promise<void> {
   const trimmed = name.trim()
-  if (!trimmed) throw new Error('A view needs a name.')
+  if (!trimmed) throw new UserFacingError('A view needs a name.')
   const payload = await getPayload()
   await payload.update({
     collection: 'saved-views' as never,
@@ -111,7 +125,13 @@ export async function renameSavedView(id: string | number, name: string) {
   revalidatePath('/requests')
 }
 
-export async function duplicateSavedView(id: string | number): Promise<{ id: string | number }> {
+export async function duplicateSavedView(
+  id: string | number,
+): Promise<ActionResult<{ id: string | number }>> {
+  return guard(() => runDuplicateSavedView(id))
+}
+
+async function runDuplicateSavedView(id: string | number): Promise<{ id: string | number }> {
   const payload = await getPayload()
   const owner = await currentActorId()
   await assertRoom(owner)
@@ -140,7 +160,11 @@ export async function deleteSavedView(id: string | number) {
 }
 
 /** Mark a view as the one that opens on arrival, or clear the current default. */
-export async function setDefaultSavedView(id: string | number | null) {
+export async function setDefaultSavedView(id: string | number | null): Promise<ActionResult<void>> {
+  return guard(() => runSetDefaultSavedView(id))
+}
+
+async function runSetDefaultSavedView(id: string | number | null): Promise<void> {
   const payload = await getPayload()
   const owner = await currentActorId()
   await clearOtherDefaults(owner, id)

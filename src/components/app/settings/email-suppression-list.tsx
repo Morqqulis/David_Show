@@ -2,6 +2,7 @@
 
 import { useRef, useState, useTransition } from 'react'
 import { toast } from 'sonner'
+import { unwrap } from '@/lib/action-result'
 import { Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -67,7 +68,7 @@ export function EmailSuppressionList({ rows: initialRows }: { rows: SuppressionR
 
     startTransition(async () => {
       try {
-        const created = await addSuppressedRecipient({ value, kind: row.kind, note: row.note })
+        const created = unwrap(await addSuppressedRecipient({ value, kind: row.kind, note: row.note }))
         setRows((cur) => cur.map((r) => (r.id === tmpId ? { ...r, id: created.id } : r)))
         toast.success('Added to the list', { id: TOAST_ID, duration: 1500 })
       } catch (err) {

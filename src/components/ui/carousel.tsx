@@ -51,6 +51,16 @@ function Carousel({
   children,
   ...props
 }: React.ComponentProps<"div"> & CarouselProps) {
+  // The arrow-enabled flags are read from Embla during render rather than
+  // copied into state by an effect. The copy ran a render behind the carousel
+  // and tripped `react-hooks/set-state-in-effect`; a redraw on Embla's own
+  // events is all the state this needs.
+  //
+  // 'use no memo': `api` keeps a stable identity, so the compiler would cache
+  // the two method calls below and the arrows would stop updating — the same
+  // trap TanStack Table sets elsewhere in this codebase.
+  "use no memo"
+
   const [carouselRef, api] = useEmblaCarousel(
     {
       ...opts,
@@ -58,14 +68,9 @@ function Carousel({
     },
     plugins
   )
-  const [canScrollPrev, setCanScrollPrev] = React.useState(false)
-  const [canScrollNext, setCanScrollNext] = React.useState(false)
-
-  const onSelect = React.useCallback((api: CarouselApi) => {
-    if (!api) return
-    setCanScrollPrev(api.canScrollPrev())
-    setCanScrollNext(api.canScrollNext())
-  }, [])
+  const [, redraw] = React.useReducer((tick: number) => tick + 1, 0)
+  const canScrollPrev = api?.canScrollPrev() ?? false
+  const canScrollNext = api?.canScrollNext() ?? false
 
   const scrollPrev = React.useCallback(() => {
     api?.scrollPrev()
@@ -95,14 +100,14 @@ function Carousel({
 
   React.useEffect(() => {
     if (!api) return
-    onSelect(api)
-    api.on("reInit", onSelect)
-    api.on("select", onSelect)
+    api.on("reInit", redraw)
+    api.on("select", redraw)
 
     return () => {
-      api?.off("select", onSelect)
+      api.off("reInit", redraw)
+      api.off("select", redraw)
     }
-  }, [api, onSelect])
+  }, [api, redraw])
 
   return (
     <CarouselContext.Provider

@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { getPayload } from '../../lib/payload'
 import { getStageBySystemId, nextStageSystemId, recordAudit } from '../../lib/stage-engine'
 import { STAGE_ORDER, isAtOrPastCoding, type StageId } from '../../lib/stage-ids'
+import { guard, UserFacingError, type ActionResult } from '../../../lib/action-result'
 import { resolveReasonText } from '../reason-actions'
 import { fetchCodingGate } from './coding'
 import { defaultActorId, evaluateAnyApprovalRule } from './_helpers'
@@ -18,7 +19,19 @@ export type ApproveOptions = {
   acknowledgedWarning?: boolean
 }
 
-export async function approveInvoice(invoiceId: string | number, options?: ApproveOptions) {
+/**
+ * The gate's refusal is the whole point of the feature, so it travels back as a
+ * returned message rather than a thrown one — see lib/action-result.ts. A
+ * broken invariant below still throws, because nobody on screen can act on it.
+ */
+export async function approveInvoice(
+  invoiceId: string | number,
+  options?: ApproveOptions,
+): Promise<ActionResult<void>> {
+  return guard(() => runApproval(invoiceId, options))
+}
+
+async function runApproval(invoiceId: string | number, options?: ApproveOptions) {
   const payload = await getPayload()
   const invoice = (await payload.findByID({ collection: 'invoices', id: invoiceId as never, depth: 2 })) as {
     currentStage?: { systemId: StageId }
@@ -58,7 +71,7 @@ export async function approveInvoice(invoiceId: string | number, options?: Appro
         linesSum: gate.verdict.linesSum,
         target: gate.verdict.target,
       })
-      throw new Error(gate.verdict.message ?? 'Invoice needs to be fully coded.')
+      throw new UserFacingError(gate.verdict.message ?? 'Invoice needs to be fully coded.')
     }
     if (gate.verdict.behaviour === 'warn') {
       if (!options?.acknowledgedWarning) {
@@ -67,7 +80,7 @@ export async function approveInvoice(invoiceId: string | number, options?: Appro
           fromStage: currentSysId,
           reasons: gate.verdict.reasons,
         })
-        throw new Error(
+        throw new UserFacingError(
           `${gate.verdict.message ?? 'Invoice needs to be fully coded.'} Confirm the warning on screen to continue.`,
         )
       }
@@ -125,6 +138,15 @@ export async function approveInvoice(invoiceId: string | number, options?: Appro
  * than by the button being disabled.
  */
 export async function rejectInvoice(
+  invoiceId: string | number,
+  toSystemId: StageId,
+  reasonId: string | number | null,
+  otherText?: string,
+): Promise<ActionResult<void>> {
+  return guard(() => runRejection(invoiceId, toSystemId, reasonId, otherText))
+}
+
+async function runRejection(
   invoiceId: string | number,
   toSystemId: StageId,
   reasonId: string | number | null,

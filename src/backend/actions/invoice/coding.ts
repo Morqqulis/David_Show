@@ -12,6 +12,7 @@ import {
 } from '../../lib/coding-completeness'
 import { fetchCodingRules } from '../coding-rules-actions'
 import { assertLineCodingAllowed, syncCrossDepartmentApprovers } from '../../lib/gl-department-routing'
+import { guard, UserFacingError, type ActionResult } from '../../../lib/action-result'
 import { defaultActorId } from './_helpers'
 
 export type CodingLineInput = {
@@ -27,7 +28,11 @@ export type CodingLineInput = {
   description?: string | null
 }
 
-export async function saveLine(line: CodingLineInput) {
+export async function saveLine(line: CodingLineInput): Promise<ActionResult<void>> {
+  return guard(() => runSaveLine(line))
+}
+
+async function runSaveLine(line: CodingLineInput): Promise<void> {
   // Authoritative half of the coding restriction. The GL dropdown is filtered
   // for usability, but a caller that skips the UI has to be refused too, so
   // this runs before anything is written. It is a no-op when no GL format is
@@ -204,7 +209,14 @@ export async function fetchCodingGate(invoiceId: string | number): Promise<Codin
 export async function submitDepartmentCoding(
   invoiceId: string | number,
   departmentId: string | number,
-) {
+): Promise<ActionResult<void>> {
+  return guard(() => runSubmitDepartmentCoding(invoiceId, departmentId))
+}
+
+async function runSubmitDepartmentCoding(
+  invoiceId: string | number,
+  departmentId: string | number,
+): Promise<void> {
   const payload = await getPayload()
   const invoice = (await payload.findByID({
     collection: 'invoices',
@@ -219,12 +231,12 @@ export async function submitDepartmentCoding(
       invoiceId,
       departmentId,
     })
-    throw new Error('That department is not assigned to this invoice.')
+    throw new UserFacingError('That department is not assigned to this invoice.')
   }
 
   const submitted = await readSubmittedDepartmentIds(payload, invoiceId)
   if (submitted.has(String(departmentId))) {
-    throw new Error(`${match.name} has already submitted its coding.`)
+    throw new UserFacingError(`${match.name} has already submitted its coding.`)
   }
 
   const actorId = await defaultActorId()

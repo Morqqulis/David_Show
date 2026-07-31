@@ -3,9 +3,16 @@
 import { revalidatePath } from 'next/cache'
 import { getPayload } from '../lib/payload'
 import { getStageBySystemId, recordAudit } from '../lib/stage-engine'
+import { guard, UserFacingError, type ActionResult } from '../../lib/action-result'
 import { evaluateManualInvoiceDuplicate } from './intake-actions'
 
-export async function createInvoiceManual(formData: FormData): Promise<{ id: string | number }> {
+export async function createInvoiceManual(
+  formData: FormData,
+): Promise<ActionResult<{ id: string | number }>> {
+  return guard(() => runCreateInvoiceManual(formData))
+}
+
+async function runCreateInvoiceManual(formData: FormData): Promise<{ id: string | number }> {
   const payload = await getPayload()
   const invoiceNumber = String(formData.get('invoiceNumber') ?? '').trim()
   const vendorId = formData.get('vendor') ? String(formData.get('vendor')) : null
@@ -19,7 +26,7 @@ export async function createInvoiceManual(formData: FormData): Promise<{ id: str
   const priority = String(formData.get('priority') ?? '')
   const confidential = formData.get('confidential') === 'on'
 
-  if (!invoiceNumber) throw new Error('Invoice number required')
+  if (!invoiceNumber) throw new UserFacingError('Enter the invoice number before saving.')
 
   // The duplicate rule is deliberately not intake-only: a vendor emailing AP
   // directly while a clerk keys the same invoice in by hand is exactly the case
@@ -44,7 +51,7 @@ export async function createInvoiceManual(formData: FormData): Promise<{ id: str
   if (duplicate.blocked) {
     const seen = duplicate.matches.map((m) => m.invoiceNumber).join(', ')
     console.error('[create-invoice] blocked as a duplicate', { invoiceNumber, matches: seen })
-    throw new Error(`This invoice is already in the system (${seen}).`)
+    throw new UserFacingError(`This invoice is already in the system (${seen}).`)
   }
 
   const tba = await getStageBySystemId(payload, 'to_be_assigned')

@@ -2,6 +2,7 @@
 
 import { useRef, useState, useTransition } from 'react'
 import { toast } from 'sonner'
+import { unwrap } from '@/lib/action-result'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
@@ -34,7 +35,7 @@ export function DuplicateRulesForm({ value }: { value: DuplicateRuleValue }) {
 
     startTransition(async () => {
       try {
-        await saveDuplicateRule(next)
+        unwrap(await saveDuplicateRule(next))
         toast.success('Duplicate rule saved', { id: TOAST_ID, duration: 1500 })
       } catch (err) {
         lastSaved.current = previous

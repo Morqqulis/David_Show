@@ -24,6 +24,7 @@ import {
   type IntakeStore,
   type IntakeTrace,
 } from '../lib/intake-pipeline'
+import { guard, UserFacingError, type ActionResult } from '../../lib/action-result'
 
 /**
  * The manual check behind Settings → Test invoice reading.
@@ -66,14 +67,18 @@ export type IntakeTestReport = {
   mappingIsConfigured: boolean
 }
 
-export async function runIntakeCheck(formData: FormData): Promise<IntakeTestReport> {
+export async function runIntakeCheck(formData: FormData): Promise<ActionResult<IntakeTestReport>> {
+  return guard(() => runIntakeCheckInner(formData))
+}
+
+async function runIntakeCheckInner(formData: FormData): Promise<IntakeTestReport> {
   const commit = formData.get('commit') === '1'
   const file = formData.get('file')
   if (!(file instanceof File) || file.size === 0) {
-    throw new Error('Choose a file first — there is nothing to check.')
+    throw new UserFacingError('Choose a file first — there is nothing to check.')
   }
   if (file.size > MAX_FILE_BYTES) {
-    throw new Error('That file is larger than 50 MB, which is more than can be checked.')
+    throw new UserFacingError('That file is larger than 50 MB, which is more than can be checked.')
   }
 
   const useService = isDocumentIntelligenceConfigured()
@@ -107,7 +112,7 @@ export async function runIntakeCheck(formData: FormData): Promise<IntakeTestRepo
     // anything, so it can promise that. Creating for real is several steps —
     // the invoice, then its document, then its history — and a failure part
     // way through leaves the earlier ones in place, so it must not promise it.
-    throw new Error(
+    throw new UserFacingError(
       commit
         ? 'Something went wrong part way through creating this invoice. Look in To Be Assigned before trying again — it may already be there, possibly without its document attached.'
         : 'The check could not be finished. Nothing was changed and no invoice was created. Try again in a moment.',
@@ -187,9 +192,9 @@ function parseManualReadings(raw: FormDataEntryValue | null): ManualReading[] {
     parsed = JSON.parse(raw)
   } catch {
     console.error('[intake-check] the typed-in readings could not be read', { length: raw.length })
-    throw new Error('The details you typed in could not be read. Reload the page and try again.')
+    throw new UserFacingError('The details you typed in could not be read. Reload the page and try again.')
   }
-  if (!Array.isArray(parsed)) throw new Error('The details you typed in could not be read.')
+  if (!Array.isArray(parsed)) throw new UserFacingError('The details you typed in could not be read.')
 
   // Validated against the model's own field list rather than a copy of the
   // eight the form offers, so the two can never drift apart.

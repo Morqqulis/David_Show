@@ -32,7 +32,7 @@ export default async function AlertsPage() {
               <AlertTriangle className="h-4 w-4 text-red-600" /> Archive failures
             </CardTitle>
             <CardDescription>
-              These invoices completed but couldn't be archived to SharePoint after 5 retry attempts. Manual retry from here.
+              These invoices completed but couldn&apos;t be archived to SharePoint after 5 retry attempts. Manual retry from here.
             </CardDescription>
           </CardHeader>
           <CardContent>

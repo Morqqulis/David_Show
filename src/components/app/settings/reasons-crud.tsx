@@ -3,6 +3,7 @@
 import { useMemo, useState, useTransition } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
+import { unwrap } from '@/lib/action-result'
 import type { ColumnDef } from '@tanstack/react-table'
 import { Lock } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
@@ -148,8 +149,10 @@ function ScopeList({ list, columns }: { list: ReasonList; columns: ColumnDef<Rea
         { key: 'label', label: 'Reason' },
         { key: 'order', label: 'Position in the list', type: 'number', defaultValue: 1 },
       ]}
-      upsert={(id, patch) => upsertReason(id, { ...patch, scope: list.scope, active: true })}
-      remove={deleteReason}
+      upsert={async (id, patch) =>
+        unwrap(await upsertReason(id, { ...patch, scope: list.scope, active: true }))
+      }
+      remove={async (id) => unwrap(await deleteReason(id))}
       // Other is permanent — a clerk always needs somewhere to put a reason
       // nobody anticipated. It can be switched off, but not removed.
       canDelete={(row) => !row.isOther}

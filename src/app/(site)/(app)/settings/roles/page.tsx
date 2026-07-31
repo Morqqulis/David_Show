@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { getPayload } from '@/backend/lib/payload'
 import { RolesTable, type RoleRow } from '@/components/app/settings/roles-table'
@@ -22,9 +23,9 @@ export default async function RolesPage() {
         <RolesTable rows={roles} />
         <p className="mt-4 text-xs text-muted-foreground">
           Role editor with the full permission matrix is wired in Payload Admin (
-          <a className="text-primary hover:underline" href="/admin">
+          <Link className="text-primary hover:underline" href="/admin">
             /admin
-          </a>
+          </Link>
           ). The in-app editor for this view is intentionally lightweight in v1.
         </p>
       </CardContent>

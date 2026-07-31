@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { saveEmailWrapper } from '@/backend/actions/email-actions'
+import { unwrap } from '@/lib/action-result'
 import type { EmailWrapper } from '@/backend/lib/email-render'
 import { EmailPreview } from './email-preview'
 import { RichHtmlEditor, type RichHtmlEditorHandle } from './rich-html-editor'
@@ -40,7 +41,7 @@ export function WrapperSettingsForm({ initial }: { initial: EmailWrapper }) {
     setStored(next)
     startTransition(async () => {
       try {
-        await saveEmailWrapper(next)
+        unwrap(await saveEmailWrapper(next))
         toast.success('Saved', { id: TOAST_ID, duration: 1500 })
       } catch (err) {
         console.error('[email-settings] save failed', { fromEmail: next.fromEmail, err })

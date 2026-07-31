@@ -2,6 +2,7 @@
 
 import { useRef, useState, useTransition } from 'react'
 import { toast } from 'sonner'
+import { unwrap } from '@/lib/action-result'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -70,12 +71,14 @@ export function GlFormatForm({
     setForm(next)
     startTransition(async () => {
       try {
-        await saveGlFormat({
-          mask: next.mask,
-          labels: next.labels,
-          departmentSegment: next.departmentSegment,
-          catchAllDepartment: next.catchAllDepartment,
-        })
+        unwrap(
+          await saveGlFormat({
+            mask: next.mask,
+            labels: next.labels,
+            departmentSegment: next.departmentSegment,
+            catchAllDepartment: next.catchAllDepartment,
+          }),
+        )
         toast.success('GL account format saved', { id: TOAST_ID, duration: 1500 })
       } catch (err) {
         lastSaved.current = previous

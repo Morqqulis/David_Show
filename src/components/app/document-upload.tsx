@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import { Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { uploadDocument } from '@/backend/actions/document-actions'
+import { unwrap } from '@/lib/action-result'
 
 const ACCEPTED = '.pdf,.doc,.docx,.jpg,.jpeg,.png,.tif,.tiff,application/pdf,image/*'
 
@@ -33,7 +34,7 @@ export function DocumentUpload({
       fd.set('file', file)
       fd.set('invoiceId', String(invoiceId))
       try {
-        const result = await uploadDocument(fd)
+        const result = unwrap(await uploadDocument(fd))
         toast.success(`${file.name} uploaded`)
         if (inputRef.current) inputRef.current.value = ''
         await onUploaded?.(result.id)

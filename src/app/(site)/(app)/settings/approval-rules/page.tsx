@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { getPayload } from '@/backend/lib/payload'
 import { ApprovalRulesTable, type ApprovalRuleRow } from '@/components/app/settings/approval-rules-table'
@@ -20,9 +21,9 @@ export default async function ApprovalRulesPage() {
         <ApprovalRulesTable rows={rules} />
         <p className="mt-4 text-xs text-muted-foreground">
           The visual rule builder (drag-and-drop conditions) is the natural next iteration. In demo mode, edit rules in{' '}
-          <a className="text-primary hover:underline" href="/admin">
+          <Link className="text-primary hover:underline" href="/admin">
             Payload Admin
-          </a>
+          </Link>
           .
         </p>
       </CardContent>

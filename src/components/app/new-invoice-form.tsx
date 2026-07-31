@@ -4,6 +4,7 @@ import { useTransition, type FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
+import { unwrap } from '@/lib/action-result'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
@@ -32,7 +33,7 @@ export function NewInvoiceForm({ vendors }: { vendors: NewInvoiceVendor[] }) {
     const fd = new FormData(e.currentTarget)
     startTransition(async () => {
       try {
-        const { id } = await createInvoiceManual(fd)
+        const { id } = unwrap(await createInvoiceManual(fd))
         // The new invoice changes the "to_be_assigned" stage count and the
         // dashboard KPIs. SSR caches are dropped by updateTag('invoices') in
         // recordAudit, but TanStack queueCounts (staleTime: Infinity) won't

@@ -1,10 +1,11 @@
 'use client'
 
-import { useEffect, useMemo, useState, useTransition } from 'react'
+import { useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { unwrap } from '@/lib/action-result'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -67,9 +68,15 @@ export function CodingScreen({
   const router = useRouter()
   const qc = useQueryClient()
 
-  useEffect(() => {
+  // Re-seed the editable rows when the server sends a different set (a save,
+  // or navigating to another invoice). Adjusting state during render is React's
+  // own answer for "reset state when a prop changes" — the effect version ran a
+  // render late, and tripped `react-hooks/set-state-in-effect`.
+  const [seededFrom, setSeededFrom] = useState(initialLines)
+  if (seededFrom !== initialLines) {
+    setSeededFrom(initialLines)
     setLines(initialLines)
-  }, [initialLines])
+  }
 
   const taxById = useMemo(
     () => new Map(opts.taxCodes.map((t) => [String(t.id), t])),
@@ -137,7 +144,7 @@ export function CodingScreen({
   function submitMyDepartment(departmentId: string | number, departmentName: string) {
     startTransition(async () => {
       try {
-        await submitDepartmentCoding(invoice.id, departmentId)
+        unwrap(await submitDepartmentCoding(invoice.id, departmentId))
         await qc.invalidateQueries({ queryKey: ['coding-gate', String(invoice.id)] })
         await qc.invalidateQueries({ queryKey: queryKeys.invoice(invoice.id) })
         toast.success(`${departmentName} coding submitted`)
@@ -175,18 +182,22 @@ export function CodingScreen({
     const line = lines[idx]
     startTransition(async () => {
       try {
-        await saveLine({
-          id: line.id ?? undefined,
-          invoice: invoice.id,
-          order: idx + 1,
-          glAccount: line.glAccount?.id ?? null,
-          costCenter: line.costCenter?.id ?? null,
-          project: line.project?.id ?? null,
-          fund: line.fund?.id ?? null,
-          amount: line.amount || 0,
-          taxCode: line.taxCode?.id ?? null,
-          description: line.description ?? null,
-        })
+        // Unwrapped so a GL restriction refusal ("that code belongs to another
+        // department") reaches the toast instead of being silently discarded.
+        unwrap(
+          await saveLine({
+            id: line.id ?? undefined,
+            invoice: invoice.id,
+            order: idx + 1,
+            glAccount: line.glAccount?.id ?? null,
+            costCenter: line.costCenter?.id ?? null,
+            project: line.project?.id ?? null,
+            fund: line.fund?.id ?? null,
+            amount: line.amount || 0,
+            taxCode: line.taxCode?.id ?? null,
+            description: line.description ?? null,
+          }),
+        )
         toast.success('Line saved')
         // SSR (re-fetched via router.refresh) feeds CodingScreen's own props,
         // but InvoiceView reads lines from the TanStack invoice cache — drop

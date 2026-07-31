@@ -10,6 +10,7 @@ import {
   readGraphConfiguration,
   renewMailboxSubscription,
 } from '../lib/graph-mailbox'
+import { guard, UserFacingError, type ActionResult } from '../../lib/action-result'
 import { loadIntakeSettings } from './intake-actions'
 
 /**
@@ -43,24 +44,32 @@ async function upsertSingleton(
   return { id: created.id }
 }
 
-export async function saveIntakeSettings(patch: {
+type IntakeSettingsPatch = {
   enabled: boolean
   mailboxAddress: string
   senderPolicy: 'internal_only' | 'public'
   internalDomains: string[]
   confidenceThreshold: number
   amountTolerance: number
-}): Promise<{ id: string | number }> {
+}
+
+export async function saveIntakeSettings(
+  patch: IntakeSettingsPatch,
+): Promise<ActionResult<{ id: string | number }>> {
+  return guard(() => runSaveIntakeSettings(patch))
+}
+
+async function runSaveIntakeSettings(patch: IntakeSettingsPatch): Promise<{ id: string | number }> {
   const address = patch.mailboxAddress.trim()
   if (patch.enabled && address === '') {
-    throw new Error('Enter the mailbox address before switching email intake on.')
+    throw new UserFacingError('Enter the mailbox address before switching email intake on.')
   }
   const domains = patch.internalDomains.map((d) => d.trim().toLowerCase()).filter((d) => d !== '')
   if (patch.enabled && patch.senderPolicy === 'internal_only' && domains.length === 0) {
-    throw new Error('Add at least one staff email domain, or switch the mailbox to accept anyone.')
+    throw new UserFacingError('Add at least one staff email domain, or switch the mailbox to accept anyone.')
   }
   if (patch.confidenceThreshold < 0 || patch.confidenceThreshold > 1) {
-    throw new Error('The confidence setting has to be between 0 and 100 percent.')
+    throw new UserFacingError('The confidence setting has to be between 0 and 100 percent.')
   }
 
   const payload = await getPayload()
@@ -77,12 +86,23 @@ export async function saveIntakeSettings(patch: {
   return result
 }
 
+type OcrMappingPatch = { appField: string; sourceField: string; enabled: boolean; order: number }
+
 export async function upsertOcrMappingRow(
   id: string | number | null,
-  patch: { appField: string; sourceField: string; enabled: boolean; order: number },
+  patch: OcrMappingPatch,
+): Promise<ActionResult<{ id: string | number }>> {
+  return guard(() => runUpsertOcrMappingRow(id, patch))
+}
+
+async function runUpsertOcrMappingRow(
+  id: string | number | null,
+  patch: OcrMappingPatch,
 ): Promise<{ id: string | number }> {
-  if (patch.appField.trim() === '') throw new Error('Choose which field in this app the value goes into.')
-  if (patch.sourceField.trim() === '') throw new Error('Choose which reading the value comes from.')
+  if (patch.appField.trim() === '')
+    throw new UserFacingError('Choose which field in this app the value goes into.')
+  if (patch.sourceField.trim() === '')
+    throw new UserFacingError('Choose which reading the value comes from.')
 
   const payload = await getPayload()
   if (id) {
@@ -104,20 +124,28 @@ export async function deleteOcrMappingRow(id: string | number): Promise<void> {
   revalidatePath(OCR_PATH)
 }
 
-export async function saveDuplicateRule(patch: {
+type DuplicateRulePatch = {
   keyFields: string[]
   action: 'flag' | 'block' | 'allow'
   ignoreCancelled: boolean
   caseInsensitive: boolean
   appliesToManualEntry: boolean
   windowDays: number | null
-}): Promise<{ id: string | number }> {
+}
+
+export async function saveDuplicateRule(
+  patch: DuplicateRulePatch,
+): Promise<ActionResult<{ id: string | number }>> {
+  return guard(() => runSaveDuplicateRule(patch))
+}
+
+async function runSaveDuplicateRule(patch: DuplicateRulePatch): Promise<{ id: string | number }> {
   const keyFields = [...new Set(patch.keyFields.filter((f) => f.trim() !== ''))]
   if (keyFields.length === 0) {
-    throw new Error('Pick at least one field that decides whether two invoices are the same.')
+    throw new UserFacingError('Pick at least one field that decides whether two invoices are the same.')
   }
   if (patch.windowDays !== null && patch.windowDays < 1) {
-    throw new Error('The number of days to look back has to be at least 1, or left blank.')
+    throw new UserFacingError('The number of days to look back has to be at least 1, or left blank.')
   }
 
   const payload = await getPayload()
@@ -133,15 +161,21 @@ export async function saveDuplicateRule(patch: {
   return result
 }
 
-export async function addSuppressedRecipient(patch: {
-  value: string
-  kind: 'address' | 'domain' | 'group'
-  note: string
-}): Promise<{ id: string | number }> {
+type SuppressionPatch = { value: string; kind: 'address' | 'domain' | 'group'; note: string }
+
+export async function addSuppressedRecipient(
+  patch: SuppressionPatch,
+): Promise<ActionResult<{ id: string | number }>> {
+  return guard(() => runAddSuppressedRecipient(patch))
+}
+
+async function runAddSuppressedRecipient(patch: SuppressionPatch): Promise<{ id: string | number }> {
   const value = patch.value.trim()
-  if (value === '') throw new Error('Enter an email address, a domain, or a group name.')
+  if (value === '') throw new UserFacingError('Enter an email address, a domain, or a group name.')
   if (patch.kind === 'address' && !value.includes('@')) {
-    throw new Error('That does not look like an email address. Choose "Everyone at a domain" if you meant a domain.')
+    throw new UserFacingError(
+      'That does not look like an email address. Choose "Everyone at a domain" if you meant a domain.',
+    )
   }
 
   const payload = await getPayload()
@@ -164,9 +198,13 @@ export async function deleteSuppressedRecipient(id: string | number): Promise<vo
  * before it will create the subscription, so this fails immediately and
  * visibly if the address is wrong, rather than going quiet.
  */
-export async function startMailboxWatch(): Promise<{ expiresAt: string }> {
+export async function startMailboxWatch(): Promise<ActionResult<{ expiresAt: string }>> {
+  return guard(runStartMailboxWatch)
+}
+
+async function runStartMailboxWatch(): Promise<{ expiresAt: string }> {
   const settings = await loadIntakeSettings()
-  if (!settings.mailboxAddress) throw new Error('Enter the mailbox address first.')
+  if (!settings.mailboxAddress) throw new UserFacingError('Enter the mailbox address first.')
 
   const config = readGraphConfiguration()
   const payload = await getPayload()
@@ -181,7 +219,18 @@ export async function startMailboxWatch(): Promise<{ expiresAt: string }> {
     })
   }
 
-  const subscription = await createMailboxSubscription(config, settings.mailboxAddress)
+  // Microsoft's own words are worth showing here. When it refuses, the reason
+  // is nearly always something an administrator has to change in Microsoft 365
+  // — permission not granted, mailbox out of the allowed list, address wrong —
+  // and hiding it behind "something went wrong" costs an afternoon of guessing.
+  const subscription = await createMailboxSubscription(config, settings.mailboxAddress).catch((err) => {
+    const reason = err instanceof Error ? err.message : 'no reason was given'
+    console.error('[intake] Microsoft refused to start watching the mailbox', {
+      mailbox: settings.mailboxAddress,
+      reason,
+    })
+    throw new UserFacingError(`Microsoft would not start watching this mailbox. It said: ${reason}`)
+  })
   await upsertSingleton(payload, 'intake-settings', {
     subscriptionId: subscription.id,
     subscriptionExpiresAt: subscription.expirationDateTime,
@@ -190,11 +239,19 @@ export async function startMailboxWatch(): Promise<{ expiresAt: string }> {
   return { expiresAt: subscription.expirationDateTime }
 }
 
-export async function stopMailboxWatch(): Promise<void> {
+export async function stopMailboxWatch(): Promise<ActionResult<void>> {
+  return guard(runStopMailboxWatch)
+}
+
+async function runStopMailboxWatch(): Promise<void> {
   const settings = await loadIntakeSettings()
   const payload = await getPayload()
   if (settings.subscriptionId) {
-    await deleteMailboxSubscription(readGraphConfiguration(), settings.subscriptionId)
+    await deleteMailboxSubscription(readGraphConfiguration(), settings.subscriptionId).catch((err) => {
+      const reason = err instanceof Error ? err.message : 'no reason was given'
+      console.error('[intake] the mailbox connection could not be closed', { reason })
+      throw new UserFacingError(`Microsoft would not close the connection. It said: ${reason}`)
+    })
   }
   await upsertSingleton(payload, 'intake-settings', {
     subscriptionId: null,

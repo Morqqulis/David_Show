@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { toast } from 'sonner'
+import { unwrap } from '@/lib/action-result'
 import { Bookmark, Check, ChevronDown, Copy, Pencil, Share2, Star, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -102,7 +103,7 @@ export function SavedViewsBar({
     onViewsChange([...views, optimistic])
     startTransition(async () => {
       try {
-        const created = await createSavedView(name, spec)
+        const created = unwrap(await createSavedView(name, spec))
         const saved = { ...optimistic, id: created.id }
         onViewsChange([...previous, saved])
         onApply(saved)
@@ -123,7 +124,7 @@ export function SavedViewsBar({
     onViewsChange([...views, { ...view, id: tmpId, name: `${view.name} (copy)`, isDefault: false, editable: true, publishedToRoles: [] }])
     startTransition(async () => {
       try {
-        const created = await duplicateSavedView(view.id)
+        const created = unwrap(await duplicateSavedView(view.id))
         onViewsChange([
           ...previous,
           { ...view, id: created.id, name: `${view.name} (copy)`, isDefault: false, editable: true, publishedToRoles: [] },
@@ -215,7 +216,7 @@ export function SavedViewsBar({
                           ...v,
                           isDefault: makeDefault && String(v.id) === String(activeView.id),
                         })),
-                        () => setDefaultSavedView(makeDefault ? activeView.id : null),
+                        async () => unwrap(await setDefaultSavedView(makeDefault ? activeView.id : null)),
                         makeDefault ? 'This view now opens first' : 'This view no longer opens first',
                         'Could not change which view opens first',
                         { id: activeView.id },
@@ -282,7 +283,7 @@ export function SavedViewsBar({
           if (!activeView) return
           run(
             patch(activeView.id, { name }),
-            () => renameSavedView(activeView.id, name),
+            async () => unwrap(await renameSavedView(activeView.id, name)),
             'View renamed',
             'Could not rename the view',
             { id: activeView.id },

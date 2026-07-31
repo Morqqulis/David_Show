@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { getPayload } from '../lib/payload'
 import { recordAudit } from '../lib/stage-engine'
+import { guard, UserFacingError, type ActionResult } from '../../lib/action-result'
 
 async function defaultActorId() {
   const payload = await getPayload()
@@ -14,12 +15,20 @@ async function defaultActorId() {
   return admin.docs[0]?.id
 }
 
-export async function uploadDocument(formData: FormData) {
+export async function uploadDocument(
+  formData: FormData,
+): Promise<ActionResult<{ id: string | number }>> {
+  return guard(() => runUploadDocument(formData))
+}
+
+async function runUploadDocument(formData: FormData): Promise<{ id: string | number }> {
   const file = formData.get('file') as File | null
   const invoiceIdRaw = formData.get('invoiceId')
-  if (!file || !invoiceIdRaw) throw new Error('file and invoiceId are required')
-  if (file.size === 0) throw new Error('Empty file')
-  if (file.size > 50 * 1024 * 1024) throw new Error('File exceeds 50 MB cap')
+  if (!file || !invoiceIdRaw) throw new UserFacingError('Choose a file to attach first.')
+  if (file.size === 0) throw new UserFacingError('That file is empty, so there is nothing to attach.')
+  if (file.size > 50 * 1024 * 1024) {
+    throw new UserFacingError('That file is larger than 50 MB, which is more than can be attached.')
+  }
 
   const payload = await getPayload()
   const actorId = await defaultActorId()

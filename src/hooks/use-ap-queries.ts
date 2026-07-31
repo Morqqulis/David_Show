@@ -3,6 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import type { StageId } from '@/backend/lib/stage-ids'
+import { unwrap } from '@/lib/action-result'
 import {
   approveInvoice,
   rejectInvoice,
@@ -107,7 +108,10 @@ export function useApproveInvoice() {
       /** Set once the user has confirmed a Warn-level sum-match message. */
       acknowledgedWarning?: boolean
     }) => {
-      await approveInvoice(id, { acknowledgedWarning })
+      // `unwrap` is what turns the sum-match gate's configured block message
+      // into a thrown error the mutation's onError can show. Awaiting without
+      // it would discard the refusal and report a successful approval.
+      unwrap(await approveInvoice(id, { acknowledgedWarning }))
     },
     onMutate: async ({ id, currentStage }) => {
       await qc.cancelQueries({ queryKey: queryKeys.invoice(id) })
@@ -155,7 +159,7 @@ export function useRejectInvoice() {
       /** The free-text line the built-in Other option reveals. */
       otherText?: string
     }) => {
-      await rejectInvoice(id, target, reasonId, otherText)
+      unwrap(await rejectInvoice(id, target, reasonId, otherText))
     },
     onError: (err) => toast.error((err as Error).message || 'Reject failed'),
     onSettled: (_d, _e, vars) => {
@@ -321,7 +325,7 @@ export function useOpenWorkFor(
 export function useReassignInvoices() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (cmd: ReassignCommand) => reassignInvoices(cmd),
+    mutationFn: async (cmd: ReassignCommand) => unwrap(await reassignInvoices(cmd)),
     onError: (err) => {
       console.error('[reassign] the operation could not be completed', { err })
       toast.error((err as Error).message || 'The invoices could not be reassigned.')

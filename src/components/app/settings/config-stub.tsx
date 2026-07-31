@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 
@@ -29,7 +30,7 @@ export function ConfigStub({
           ))}
         </dl>
         <p className="mt-4 text-xs text-muted-foreground">
-          Demo defaults shown. Editing UI is wired in Payload Admin (<a className="text-primary hover:underline" href="/admin">/admin</a>).
+          Demo defaults shown. Editing UI is wired in Payload Admin (<Link className="text-primary hover:underline" href="/admin">/admin</Link>).
         </p>
       </CardContent>
     </Card>

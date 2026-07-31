@@ -30,6 +30,15 @@ export function PdfPreview({ doc, invoiceNumber }: { doc?: PreviewDocument | nul
   if (isImage) {
     return (
       <div className="flex h-full w-full items-center justify-center overflow-auto bg-muted/30 p-3">
+        {/*
+          A plain <img> on purpose. `next/image` needs the intrinsic size up
+          front, and a scanned invoice arrives at whatever size the scanner
+          produced — the whole point here is to fit an unknown page into the
+          pane. Optimisation would also mean routing every attachment through
+          the image pipeline, which is the wrong place for a document nobody
+          browses more than once.
+        */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={doc.url} alt={doc.filename} className="max-h-full max-w-full object-contain" />
       </div>
     )

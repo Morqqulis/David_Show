@@ -2,6 +2,7 @@ import 'server-only'
 import { getPayload } from './payload'
 import { defaultActorId } from '../actions/invoice/_helpers'
 import { resolveDepartmentForGl, parseMask, validateGlCode, type GlMask, type SegmentMapRow } from './segments'
+import { UserFacingError } from '../../lib/action-result'
 
 /**
  * Which department owns a GL account, and whether the person in front of the
@@ -150,7 +151,9 @@ export async function assertLineCodingAllowed(
       code: gl.code,
       reason: check.reason,
     })
-    throw new Error(`${gl.code} does not match the GL account format. ${check.reason ?? ''}`.trim())
+    throw new UserFacingError(
+      `${gl.code} does not match the GL account format. ${check.reason ?? ''}`.trim(),
+    )
   }
 
   if (actor.departmentId === null) {
@@ -158,7 +161,7 @@ export async function assertLineCodingAllowed(
       userId: actor.userId,
       glAccountId,
     })
-    throw new Error(
+    throw new UserFacingError(
       'You are not a member of any department, so you cannot code invoice lines. Ask an administrator to set your department.',
     )
   }
@@ -176,7 +179,7 @@ export async function assertLineCodingAllowed(
       owningDepartmentId: owner.departmentId,
       actorDepartmentId: actor.departmentId,
     })
-    throw new Error(
+    throw new UserFacingError(
       `${gl.code} belongs to another department. Choose a GL account for ${actor.departmentName ?? 'your department'}.`,
     )
   }

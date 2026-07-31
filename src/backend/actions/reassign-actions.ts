@@ -14,6 +14,7 @@ import {
 } from '../lib/reassign-eligibility'
 import { defaultActorId } from './invoice/_helpers'
 import { resolveReasonText } from './reason-actions'
+import { guard, UserFacingError, type ActionResult } from '../../lib/action-result'
 
 /**
  * Reassignment: moving one person's outstanding slot on an invoice to somebody
@@ -282,12 +283,18 @@ export type ReassignOutcome = {
  * A failure on one invoice is reported and the rest still commit — a clerk
  * moving forty invoices should not lose thirty-nine to one bad row.
  */
-export async function reassignInvoices(cmd: ReassignCommand): Promise<ReassignOutcome> {
+export async function reassignInvoices(cmd: ReassignCommand): Promise<ActionResult<ReassignOutcome>> {
+  return guard(() => runReassignInvoices(cmd))
+}
+
+async function runReassignInvoices(cmd: ReassignCommand): Promise<ReassignOutcome> {
   const payload = await getPayload()
   const people = await loadPeople()
   const actor = await loadActor(people)
   const target = people.find((p) => String(p.id) === String(cmd.toUserId)) ?? null
-  if (!target) throw new Error('That person is no longer in the directory. Pick somebody else.')
+  if (!target) {
+    throw new UserFacingError('That person is no longer in the directory. Pick somebody else.')
+  }
 
   const reasonText = await resolveReasonText('reassign', cmd.reasonId, cmd.otherText)
   const invoices = await fetchInvoicesForReassign(cmd.invoiceIds)

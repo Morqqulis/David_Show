@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { getPayload } from '../lib/payload'
 import { loadActorContext, loadGlMappingConfig } from '../lib/gl-department-routing'
 import { parseMask, resolveDepartmentForGl } from '../lib/segments'
+import { guard, type ActionResult } from '../../lib/action-result'
 
 const SETTINGS_PATH = '/settings/coding-restrictions'
 
@@ -102,14 +103,24 @@ export async function fetchCodableGlAccounts(): Promise<CodableGlPayload> {
   return { bypass: false, restricted: true, blocked: false, message: null, glAccounts: mine }
 }
 
-export async function saveGlFormat(patch: {
+type GlFormatPatch = {
   mask: string
   labels: string[]
   departmentSegment: number
   catchAllDepartment: string | number
-}): Promise<{ id: string | number }> {
+}
+
+export async function saveGlFormat(
+  patch: GlFormatPatch,
+): Promise<ActionResult<{ id: string | number }>> {
+  return guard(() => runSaveGlFormat(patch))
+}
+
+async function runSaveGlFormat(patch: GlFormatPatch): Promise<{ id: string | number }> {
   // Reject an unusable format here rather than storing it and discovering the
-  // problem the next time somebody codes an invoice.
+  // problem the next time somebody codes an invoice. `parseMask` raises a
+  // refusal written for the admin editing the form; `guard` carries its words
+  // through to the screen.
   parseMask(patch.mask, patch.labels, patch.departmentSegment - 1)
 
   const payload = await getPayload()

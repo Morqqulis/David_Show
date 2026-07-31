@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { unwrap } from '@/lib/action-result'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { softDeleteInvoice } from '@/backend/actions/invoice'
 import type { StageId } from '@/backend/lib/stage-ids'
@@ -89,7 +90,7 @@ export function InvoiceView({ data }: { data: InvoiceViewData }) {
   const onSoftDelete = (reasonId: string | null, otherText: string) => {
     startTransition(async () => {
       try {
-        await softDeleteInvoice(inv.id, reasonId, otherText)
+        unwrap(await softDeleteInvoice(inv.id, reasonId, otherText))
       } catch (err) {
         console.error('[invoice-view] moving the invoice to Trash failed', { id: inv.id, err })
         toast.error((err as Error).message || 'The invoice could not be moved to Trash.')

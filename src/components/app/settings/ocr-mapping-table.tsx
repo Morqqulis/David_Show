@@ -2,6 +2,7 @@
 
 import { useRef, useState, useTransition } from 'react'
 import { toast } from 'sonner'
+import { unwrap } from '@/lib/action-result'
 import { Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
@@ -57,12 +58,14 @@ export function OcrMappingTable({
 
     startTransition(async () => {
       try {
-        await upsertOcrMappingRow(row.id, {
-          appField: next.appField,
-          sourceField: next.sourceField,
-          enabled: next.enabled,
-          order: next.order,
-        })
+        unwrap(
+          await upsertOcrMappingRow(row.id, {
+            appField: next.appField,
+            sourceField: next.sourceField,
+            enabled: next.enabled,
+            order: next.order,
+          }),
+        )
         toast.success('Reading rule saved', { id: TOAST_ID, duration: 1500 })
       } catch (err) {
         setRows(previous)
@@ -100,12 +103,14 @@ export function OcrMappingTable({
 
     startTransition(async () => {
       try {
-        const created = await upsertOcrMappingRow(null, {
-          appField: draft.appField,
-          sourceField: draft.sourceField,
-          enabled: draft.enabled,
-          order: draft.order,
-        })
+        const created = unwrap(
+          await upsertOcrMappingRow(null, {
+            appField: draft.appField,
+            sourceField: draft.sourceField,
+            enabled: draft.enabled,
+            order: draft.order,
+          }),
+        )
         setRows((cur) => cur.map((r) => (r.id === tmpId ? { ...r, id: created.id } : r)))
         toast.success('Reading rule added', { id: TOAST_ID, duration: 1500 })
       } catch (err) {
