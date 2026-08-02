@@ -455,6 +455,30 @@ Related: the queue now travels in the address (`?tab=`), not only in the store, 
 
 The workflow settings table shows badges like `to_be_coded`, `ap_review` next to each stage label. Useful for admin/dev, **not** appropriate for client demos. Same risk: ID columns in tables, `tmp-…` client-side temp IDs that may briefly flash, raw stack traces in error toasts. Still open — see §7.4.
 
+### 6.16a. Three defects the client found on the first real invoice
+
+All three came from clicking, not from any check, and each had a root cause worth keeping.
+
+**The expanded row on All Requests previewed nothing.** [inline-detail.tsx](src/components/app/invoice-table/inline-detail.tsx) rendered a striped box reading *"PDF preview placeholder"*. Item 3 named three places document preview was broken; the storage fix (§6.8) repaired two and this one had never been wired up at all. It now renders `PdfPreview`, and `INVOICE_LIST_SELECT` carries `documents` — one join per page at `depth: 1`.
+
+**An unread amount was stored as 0.** `parseAmount` returns null for a figure it could not read confidently, with a comment saying exactly why, and `reconcileAmounts` reports `checked: false` when one is missing. Then `createInvoice` did `draft.grandTotal ?? 0`. A $5,000 invoice was stored, listed and exported as **$0.00**, and because the reconciliation had already declined to check, the amounts-do-not-add-up flag never fired either. The coercion is gone; the field stays `undefined`.
+
+**Readings below the confidence bar were discarded.** The client's invoice showed no vendor. The intake record said `belowThreshold: ["vendorName", "grandTotal"]` — both were read, neither cleared 80%. Leaving the field blank is the specified behaviour and is unchanged. Throwing the reading away was a second, unasked-for decision, and it left a clerk retyping a name off a document the app had already read. `applyFieldMapping` now also returns `suggestions`, carried in the intake event's existing `appliedValues` json column (**no new database column, no migration**) and shown beside the empty field.
+
+### 6.16b. To Be Assigned had no way to assign anything
+
+The only forward action was **Approve & advance**, which pushed an invoice into the next queue owned by nobody. Reassign could not stand in and never could: `listOwnershipSlots` returns pending approvals, or the assignees otherwise, and an emailed invoice has neither — so `planBulkReassign` skipped every attempt with *"Nobody is currently holding this invoice."* The button appeared and always refused.
+
+[invoice/assign.ts](src/backend/actions/invoice/assign.ts) is the fix. It reuses `fetchReassignContext` for the directory and `actsAtStage` for the rule rather than growing a second copy of either, and:
+
+- filters candidates by the stage the invoice is going **to**, not the one it is leaving — filtering on the current stage offers people who cannot act next, which is how an invoice gets stranded;
+- re-checks that on submit, because a server action is a public endpoint;
+- applies the same confidential rule as Reassign;
+- **advances the invoice in the same step.** The stage exists to route the invoice to somebody; assigned-but-still-in-To-Be-Assigned is a state that would have to be explained to every clerk who met it. If a client wants assign-without-advance, it is the `targetStage` line.
+- **asks for no reason.** A first assignment is routing, not a handover.
+
+`Approve & advance` is hidden at that stage (`needsAssigning` in [action-bar.tsx](src/components/app/invoice-view/action-bar.tsx)).
+
 ### 6.17. A server action must RETURN a user-facing refusal, never throw it
 
 **Next.js replaces the message of any error thrown out of a server action with a generic notice in a production build.** This is long-standing framework behaviour, not a regression — it exists so internals cannot leak. Found by clicking the "Collect invoices from this mailbox" toggle on the deployed demo: instead of *"Enter the mailbox address before switching email intake on."* the toast read *"An error occurred in the Server Components render. The specific message is omitted in production builds…"*.
@@ -600,7 +624,7 @@ bun run lint         # 0 errors, 1 warning — see below
 
 ```sh
 bun test
-# 316 pass, 0 fail, 810 expect() calls, 17 files — exit 0 as of this session
+# 320 pass, 0 fail, 830 expect() calls, 17 files — exit 0 as of this session
 ```
 
 `bun test` is Bun's built-in runner. **No test dependency was installed**; `@types/bun` is a devDependency for types only, and it is the single change to `package.json` in the whole session.
@@ -796,6 +820,8 @@ Demo-fragile bits to know about: intake cannot be shown end to end without a liv
 | Settings server actions | [settings-actions.ts](src/backend/actions/settings-actions.ts) |
 | Left-nav route predicates | [requests-routes.ts](src/lib/requests-routes.ts) |
 | Server-action refusals that survive production | [action-result.ts](src/lib/action-result.ts) |
+| Assigning a newly arrived invoice | [invoice/assign.ts](src/backend/actions/invoice/assign.ts), [assign-dialog.tsx](src/components/app/invoice-view/assign-dialog.tsx) |
+| Client testing walkthrough | [task/Client-Testing-Guide.md](task/Client-Testing-Guide.md) |
 | Payload config | [payload.config.ts](src/payload.config.ts) |
 | Collections registry | [collections/index.ts](src/backend/collections/index.ts) |
 | Stage constants + gate predicate | [stage-ids.ts](src/backend/lib/stage-ids.ts) |

@@ -23,7 +23,9 @@ An invoice emailed to the AP mailbox becomes a record in **To Be Assigned**, wit
 3. Open **All Requests**. Click the **To Be Assigned** tab.
 4. A new row should be there. Open it.
 5. On the **Header** tab, values the machine read from the document are marked so you can tell them from typed-in ones.
-6. Click the **Files** tab. The attachment is listed. Click it — the document displays in the pane on the left.
+6. Where a field is empty, look underneath it. If the scan read something but wasn't sure enough to use it, you'll see *"Scan read X · 62% sure — left blank for you to check"*. The field is still yours to fill; the app is showing its working, not filling it in.
+7. Click the **Files** tab. The attachment is listed. Click it — the document displays in the pane on the left.
+8. Back on **All Requests**, click the arrow at the start of the invoice's row to expand it. The document previews there too, beside the coding lines.
 
 ### What should happen, and why
 
@@ -31,13 +33,26 @@ An invoice emailed to the AP mailbox becomes a record in **To Be Assigned**, wit
 - **Logos and signature images are ignored.** They are part of the email's layout, not documents.
 - **An email with no attachment still creates a record**, blank, so nothing is lost. Find these with the flag filter **No attachment** on All Requests.
 - **If the scan cannot be read at all**, the record is still created with the file attached and the fields blank.
-- **A field the machine is unsure about is left blank** rather than filled with a guess. The bar is set in **Settings → Invoice Reading (OCR)**, field **How sure a reading has to be**, default 80%.
+- **A field the machine is unsure about is left blank** rather than filled with a guess, and what it read is shown underneath as a suggestion for a person to confirm. The bar is set in **Settings → Invoice Reading (OCR)**, field **How sure a reading has to be**, default 80%.
+- **An amount it could not read stays empty, never zero.** Zero is a real figure and would read as a genuine claim about the invoice.
 - **Vendor is filled only on a confident single match** against your vendor list. Two plausible candidates and it stays blank for a person to choose — the vendor drives the payment method, so a wrong guess spreads.
 - **Nothing is assigned to anybody.** That is what the To Be Assigned queue is for.
 
 ### Try a document that reads badly
 
 Send a shop receipt rather than a supplier invoice. Only the total will be found, and the record gets a placeholder number like `EMAIL-20260731-1`. That is correct behaviour — the reading model expects an invoice layout — and it shows the app does not throw away what it cannot fully read.
+
+### Assigning it to somebody
+
+An invoice arriving by email belongs to nobody. That is the point of the To Be Assigned queue, and the next thing to do is give it to a person.
+
+1. Open the invoice.
+2. Click **Assign** at the bottom of the screen.
+3. **Hand it to** lists the people who can code invoices. Someone with no coding role is not offered, because handing it to them would leave it in a queue nobody watches.
+4. The sentence underneath states what will happen before you commit.
+5. Click **Assign**. The invoice goes to that person and moves into **To Be Coded** in the same step.
+
+A confidential invoice narrows the list to people cleared for confidential invoices.
 
 ### Settings to look at
 
