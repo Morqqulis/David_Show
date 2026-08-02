@@ -205,9 +205,16 @@ export function createPayloadIntakeStore(
           invoiceDate: draft.invoiceDate ?? undefined,
           dueDate: draft.dueDate ?? undefined,
           poNumber: draft.poNumber ?? undefined,
-          subtotal: draft.subtotal ?? 0,
-          totalTax: draft.totalTax ?? 0,
-          grandTotal: draft.grandTotal ?? 0,
+          // `undefined`, never 0. `parseAmount` goes to the trouble of
+          // returning null for an amount it could not read precisely so that
+          // "we do not know" survives, and coercing it to zero here threw that
+          // away at the last step: a $5,000 invoice whose total was read at low
+          // confidence was stored, displayed and exported as $0.00. Zero is a
+          // real amount and a claim about the invoice; a blank field is a
+          // question a clerk can answer.
+          subtotal: draft.subtotal ?? undefined,
+          totalTax: draft.totalTax ?? undefined,
+          grandTotal: draft.grandTotal ?? undefined,
           currentStage: stage.id,
           createdVia: 'email',
           ocrConfidence: draft.ocrConfidence ?? undefined,

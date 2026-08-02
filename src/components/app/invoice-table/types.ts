@@ -36,4 +36,13 @@ export type InvoiceRow = {
   }
   customFields?: Record<string, unknown>
   lines?: InvoiceLineRow[]
+  /** Attachments, so the expanded row can preview the document in place. */
+  documents?: Array<{
+    id: string | number
+    filename?: string
+    mimeType?: string
+    filesize?: number
+    url?: string
+    softDeleted?: boolean
+  }>
 }

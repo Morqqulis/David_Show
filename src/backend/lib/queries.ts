@@ -219,6 +219,10 @@ const INVOICE_LIST_SELECT = {
   batch: true,
   createdAt: true,
   updatedAt: true,
+  // Needed by the expanded row on All Requests, which previews the document
+  // in place. `depth: 1` populates the relationship, so this costs one join
+  // per page rather than one per row.
+  documents: true,
 }
 
 export type RequestsQuery = {

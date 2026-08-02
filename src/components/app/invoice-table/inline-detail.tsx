@@ -1,15 +1,23 @@
 import Link from 'next/link'
+import { PdfPreview } from '@/components/app/pdf-preview'
 import type { InvoiceRow } from './types'
 
 export function InlineDetail({ row }: { row: InvoiceRow }) {
+  // The document itself, not a drawing of one. This pane shipped as a striped
+  // placeholder reading "PDF preview placeholder", which is exactly the third
+  // of the three places document preview was reported broken — the other two
+  // were fixed and this one was missed. `PdfPreview` renders its own
+  // "no document attached" state, so there is nothing to branch on here.
+  const document = (row.documents ?? []).find((d) => !d.softDeleted)
+
   return (
     <div className="grid gap-4 lg:grid-cols-[1.2fr_1fr]">
-      <div className="rounded-md border border-border bg-background">
+      <div className="flex flex-col rounded-md border border-border bg-background">
         <div className="border-b border-border px-3 py-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
           Invoice preview
         </div>
-        <div className="grid h-64 place-items-center bg-[repeating-linear-gradient(45deg,#f8fafc,#f8fafc_10px,#f1f5f9_10px,#f1f5f9_20px)] text-xs text-muted-foreground">
-          PDF preview placeholder — {row.invoiceNumber}
+        <div className="flex h-64 flex-col overflow-hidden">
+          <PdfPreview doc={document} invoiceNumber={row.invoiceNumber} />
         </div>
       </div>
       <div className="rounded-md border border-border bg-background">
