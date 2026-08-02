@@ -54,6 +54,7 @@ export default async function InvoicePage({
             comments: data.comments as never,
             audit: data.audit as never,
             documents: data.documents as never,
+            ocrSuggestions: data.intakeReading?.appliedValues?.suggestions ?? undefined,
             defaultTab: resolveTab(rawTab),
           }}
         />

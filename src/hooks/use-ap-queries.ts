@@ -6,6 +6,7 @@ import type { StageId } from '@/backend/lib/stage-ids'
 import { unwrap } from '@/lib/action-result'
 import {
   approveInvoice,
+  fetchAssignContext,
   rejectInvoice,
   verifyInvoice,
   setConfidential,
@@ -260,6 +261,15 @@ export function useReassignAvailability(invoiceId: string | number) {
 }
 
 /** Directory, invoice state and slots for the single-invoice Reassign modal. */
+/** The people who can take a newly arrived invoice. Loaded only when the dialog opens. */
+export function useAssignContext(invoiceId: string | number, enabled: boolean) {
+  return useQuery({
+    queryKey: ['assign-context', String(invoiceId)] as const,
+    queryFn: () => fetchAssignContext(invoiceId),
+    enabled,
+  })
+}
+
 export function useReassignContext(invoiceId: string | number, enabled: boolean) {
   return useQuery({
     queryKey: queryKeys.reassignContext(invoiceId),

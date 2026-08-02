@@ -32,7 +32,23 @@ type EmailedInvoice = InvoiceViewInvoice & {
   } | null
 }
 
-export function HeaderTab({ inv }: { inv: InvoiceViewInvoice }) {
+export type OcrSuggestions = Record<string, { value: string; confidence: number }>
+
+export function HeaderTab({
+  inv,
+  suggestions,
+}: {
+  inv: InvoiceViewInvoice
+  /**
+   * What the scan read for fields it was not confident enough to fill in.
+   *
+   * The threshold decides what becomes a stored value and that is unchanged —
+   * nothing here is written anywhere. It exists because discarding the reading
+   * outright left a clerk retyping a vendor name off a document the app had
+   * already read, with no sign it had tried.
+   */
+  suggestions?: OcrSuggestions
+}) {
   const emailed = inv as EmailedInvoice
   // A value counts as read from the invoice only until somebody corrects it;
   // the amount editor below clears its own marks on save for that reason.
@@ -146,8 +162,9 @@ export function HeaderTab({ inv }: { inv: InvoiceViewInvoice }) {
             className="flex items-baseline justify-between gap-3 border-b border-border/60 pb-1.5"
           >
             <span className="text-xs text-muted-foreground">{f.label}</span>
-            <span className="text-sm font-medium">
+            <span className="text-right text-sm font-medium">
               <OcrValue extracted={Boolean(f.field && extracted.has(f.field))}>{f.value}</OcrValue>
+              <Suggestion reading={f.field ? suggestions?.[f.field] : undefined} />
             </span>
           </div>
         ))}
@@ -183,6 +200,7 @@ export function HeaderTab({ inv }: { inv: InvoiceViewInvoice }) {
             value={amounts.subtotal}
             draft={draft.subtotal}
             onDraft={(v) => setDraft((d) => ({ ...d, subtotal: v }))}
+            reading={suggestions?.subtotal}
           />
           <AmountRow
             label="Total Tax Amount"
@@ -191,6 +209,7 @@ export function HeaderTab({ inv }: { inv: InvoiceViewInvoice }) {
             value={amounts.totalTax}
             draft={draft.totalTax}
             onDraft={(v) => setDraft((d) => ({ ...d, totalTax: v }))}
+            reading={suggestions?.totalTax}
           />
           <AmountRow
             label="Invoice Total"
@@ -199,6 +218,7 @@ export function HeaderTab({ inv }: { inv: InvoiceViewInvoice }) {
             value={amounts.grandTotal}
             draft={draft.grandTotal}
             onDraft={(v) => setDraft((d) => ({ ...d, grandTotal: v }))}
+            reading={suggestions?.grandTotal}
             emphasis
           />
         </div>
@@ -214,6 +234,24 @@ export function HeaderTab({ inv }: { inv: InvoiceViewInvoice }) {
   )
 }
 
+/**
+ * One unsure reading, shown beside the empty field it would have filled.
+ *
+ * Deliberately not a button that fills the field in: a person confirming a
+ * value they can see on the document beside them is the point, and one click
+ * away from "the machine typed it" is exactly the confusion the threshold
+ * exists to prevent. It renders nothing when the field already has a value.
+ */
+function Suggestion({ reading }: { reading?: { value: string; confidence: number } }) {
+  if (!reading || reading.value.trim() === '') return null
+  return (
+    <span className="mt-0.5 block text-[11px] font-normal text-muted-foreground">
+      Scan read “{reading.value}” · {Math.round(reading.confidence * 100)}% sure — left blank for you
+      to check
+    </span>
+  )
+}
+
 function AmountRow({
   label,
   editing,
@@ -222,6 +260,7 @@ function AmountRow({
   draft,
   onDraft,
   emphasis,
+  reading,
 }: {
   label: string
   editing: boolean
@@ -230,6 +269,7 @@ function AmountRow({
   draft: string
   onDraft: (value: string) => void
   emphasis?: boolean
+  reading?: { value: string; confidence: number }
 }) {
   return (
     <div className="flex items-baseline justify-between gap-3 border-b border-border/60 pb-1.5">
@@ -245,9 +285,12 @@ function AmountRow({
           aria-label={label}
         />
       ) : (
-        <OcrValue extracted={extracted}>
-          <Money value={value} className={emphasis ? 'font-semibold' : undefined} />
-        </OcrValue>
+        <span className="text-right">
+          <OcrValue extracted={extracted}>
+            <Money value={value} className={emphasis ? 'font-semibold' : undefined} />
+          </OcrValue>
+          <Suggestion reading={reading} />
+        </span>
       )}
     </div>
   )

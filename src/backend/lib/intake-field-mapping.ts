@@ -91,6 +91,18 @@ export type MappedExtraction = {
   confidences: Record<string, number>
   /** App fields left blank because the reading was not confident enough. */
   belowThreshold: string[]
+  /**
+   * What was actually read for each of those fields, kept rather than thrown
+   * away.
+   *
+   * The threshold exists so an unsure reading never becomes a stored fact, and
+   * that stays true — none of this reaches the invoice's own fields. But
+   * discarding the reading entirely was a second, unasked-for decision: it left
+   * a clerk retyping a vendor name off a document the app had already read,
+   * with no sign it had tried. Offered as a suggestion beside the empty field
+   * instead, for a person to accept or overrule.
+   */
+  suggestions: Record<string, { value: string; confidence: number }>
   /** App fields left blank because the model returned nothing for them. */
   notFound: string[]
 }
@@ -100,7 +112,13 @@ export function applyFieldMapping(
   mapping: OcrFieldMapping[],
   threshold: number,
 ): MappedExtraction {
-  const result: MappedExtraction = { values: {}, confidences: {}, belowThreshold: [], notFound: [] }
+  const result: MappedExtraction = {
+    values: {},
+    confidences: {},
+    belowThreshold: [],
+    suggestions: {},
+    notFound: [],
+  }
 
   for (const row of mapping) {
     if (!row.enabled) continue
@@ -113,13 +131,21 @@ export function applyFieldMapping(
     }
     if (source.confidence < threshold) {
       record(result.belowThreshold, row.appField)
+      // Keep the best of several unsure readings for the same field, so a
+      // second mapping row cannot replace a good suggestion with a worse one.
+      const held = result.suggestions[row.appField]
+      if (!held || source.confidence > held.confidence) {
+        result.suggestions[row.appField] = { value, confidence: source.confidence }
+      }
       continue
     }
 
     result.values[row.appField] = value
     result.confidences[row.appField] = source.confidence
-    // A later row that succeeds supersedes an earlier one that did not.
+    // A later row that succeeds supersedes an earlier one that did not — and
+    // takes the suggestion with it, since the field is no longer blank.
     remove(result.belowThreshold, row.appField)
+    delete result.suggestions[row.appField]
     remove(result.notFound, row.appField)
   }
 

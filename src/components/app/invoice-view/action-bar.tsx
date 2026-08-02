@@ -25,6 +25,7 @@ import {
 import { fetchCodingGate } from '@/backend/actions/invoice/coding'
 import { STAGE_ORDER, type StageId } from '@/backend/lib/stage-ids'
 import { useReasonList, useReassignAvailability } from '@/hooks/use-ap-queries'
+import { AssignDialog } from './assign-dialog'
 import { RejectMenu } from './reject-menu'
 import {
   EMPTY_REASON,
@@ -62,10 +63,16 @@ export function InvoiceActionBar({
   onToggleConfidential: () => void
   onSoftDelete: (reasonId: string | null, otherText: string) => void
 }) {
-  const canApprove = currentStage !== 'completed'
+  // To Be Assigned gets Assign, not Approve. Nothing has been reviewed at that
+  // point — the invoice has just arrived and belongs to nobody — so "Approve &
+  // advance" both described the wrong act and pushed the invoice into the next
+  // queue unowned. Assigning is the work of this stage, and it advances.
+  const needsAssigning = currentStage === 'to_be_assigned'
+  const canApprove = currentStage !== 'completed' && !needsAssigning
   const canReject = STAGE_ORDER.indexOf(currentStage) > 0 && currentStage !== 'completed'
   const isTreasurer = currentStage === 'treasurer_review'
 
+  const [assignOpen, setAssignOpen] = useState(false)
   const [checking, setChecking] = useState(false)
   const [pendingWarning, setPendingWarning] = useState<PendingWarning | null>(null)
   const [reassignOpen, setReassignOpen] = useState(false)
@@ -121,6 +128,12 @@ export function InvoiceActionBar({
   return (
     <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-card px-4 py-2.5">
       <div className="flex flex-wrap items-center gap-2">
+        {needsAssigning ? (
+          <Button onClick={() => setAssignOpen(true)} disabled={isMutating}>
+            <UserPlus className="h-4 w-4" />
+            Assign
+          </Button>
+        ) : null}
         {canApprove ? (
           <Button onClick={handleApprove} disabled={isMutating || checking}>
             <Check className="h-4 w-4" />
@@ -166,6 +179,7 @@ export function InvoiceActionBar({
         </Button>
       </div>
 
+      <AssignDialog invoiceId={invoiceId} open={assignOpen} onOpenChange={setAssignOpen} />
       <ReassignDialog invoiceId={invoiceId} open={reassignOpen} onOpenChange={setReassignOpen} />
 
       <Dialog open={cancelOpen} onOpenChange={setCancelOpen}>

@@ -144,7 +144,7 @@ export function InvoiceView({ data }: { data: InvoiceViewData }) {
             </TabsList>
             <div className="flex-1 overflow-y-auto p-4">
               <TabsContent value="header" className="m-0">
-                <HeaderTab inv={inv} />
+                <HeaderTab inv={inv} suggestions={data.ocrSuggestions} />
               </TabsContent>
               <TabsContent value="files" className="m-0">
                 <FilesTab

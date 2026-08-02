@@ -52,6 +52,50 @@ describe('applyFieldMapping', () => {
     expect(strict.belowThreshold).toContain('vendorName')
   })
 
+  test('a low-confidence reading is kept as a suggestion, not thrown away', () => {
+    const strict = applyFieldMapping(SAMPLE, DEFAULT_FIELD_MAPPING, 0.95)
+    // The field itself stays empty — that is the whole point of the threshold.
+    expect(strict.values.vendorName).toBeUndefined()
+    // But what was read survives, so a person can confirm it instead of
+    // retyping it off a document the app has already read.
+    expect(strict.suggestions.vendorName?.value).toBe('BlueRock Construction Inc.')
+    expect(strict.suggestions.vendorName?.confidence).toBeLessThan(0.95)
+  })
+
+  test('a field that clears the bar carries no suggestion', () => {
+    const result = applyFieldMapping(SAMPLE, DEFAULT_FIELD_MAPPING, DEFAULT_CONFIDENCE_THRESHOLD)
+    expect(result.values.invoiceNumber).toBe('INV-77100')
+    expect(result.suggestions.invoiceNumber).toBeUndefined()
+  })
+
+  test('a later confident row clears the suggestion an earlier unsure one left', () => {
+    const reading = ocr({
+      Weak: { value: 'guessed', confidence: 0.2 },
+      Strong: { value: 'certain', confidence: 0.99 },
+    })
+    const mapping = [
+      { appField: 'poNumber', sourceField: 'Weak', enabled: true },
+      { appField: 'poNumber', sourceField: 'Strong', enabled: true },
+    ]
+    const result = applyFieldMapping(reading, mapping, 0.8)
+    expect(result.values.poNumber).toBe('certain')
+    expect(result.suggestions.poNumber).toBeUndefined()
+    expect(result.belowThreshold).toHaveLength(0)
+  })
+
+  test('the best of several unsure readings is the one offered', () => {
+    const reading = ocr({
+      Worse: { value: 'blurry', confidence: 0.2 },
+      Better: { value: 'legible', confidence: 0.6 },
+    })
+    const mapping = [
+      { appField: 'poNumber', sourceField: 'Worse', enabled: true },
+      { appField: 'poNumber', sourceField: 'Better', enabled: true },
+    ]
+    const result = applyFieldMapping(reading, mapping, 0.8)
+    expect(result.suggestions.poNumber?.value).toBe('legible')
+  })
+
   test('a disabled row is ignored entirely', () => {
     const mapping = [{ appField: 'invoiceNumber', sourceField: 'InvoiceId', enabled: false }]
     const result = applyFieldMapping(SAMPLE, mapping, DEFAULT_CONFIDENCE_THRESHOLD)

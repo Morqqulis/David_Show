@@ -239,7 +239,7 @@ function startUnitTrace(
     extraction: null,
     confidenceThreshold: config.confidenceThreshold,
     mapping: config.mapping,
-    mapped: { values: {}, confidences: {}, belowThreshold: [], notFound: [] },
+    mapped: { values: {}, confidences: {}, belowThreshold: [], suggestions: {}, notFound: [] },
     vendorName: '',
     vendorMatch: { vendorId: null, ambiguous: false, score: 0 },
     amounts: {
@@ -426,7 +426,7 @@ async function processOne(args: {
 
   const mapped = reading
     ? applyFieldMapping(reading, config.mapping, config.confidenceThreshold)
-    : { values: {}, confidences: {}, belowThreshold: [], notFound: [] }
+    : { values: {}, confidences: {}, belowThreshold: [], suggestions: {}, notFound: [] }
 
   const vendors = await store.listVendors()
   const extractedVendor = mapped.values.vendorName ?? ''
@@ -552,7 +552,15 @@ async function processOne(args: {
       attachmentName: name,
       ocrStatus,
       extraction: reading,
-      appliedValues: { ...mapped.values, vendorId: vendorMatch.vendorId, belowThreshold: mapped.belowThreshold },
+      appliedValues: {
+        ...mapped.values,
+        vendorId: vendorMatch.vendorId,
+        belowThreshold: mapped.belowThreshold,
+        // Kept here rather than on the invoice so no column has to be added:
+        // this record is already the one place that holds what the reading
+        // originally said, and a json field takes the shape without a migration.
+        suggestions: mapped.suggestions,
+      },
     }),
   )
 

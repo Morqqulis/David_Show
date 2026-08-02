@@ -464,7 +464,7 @@ export async function getInvoiceWithLines(rawId: string | number) {
   // - Comments / audit: depth: 1 (just author/actor name), limit: 50
   //   (the Log tab paginates if it ever needs more)
   // - Documents: depth: 1 for uploaded URL only
-  const [lines, comments, audit, documents] = await Promise.all([
+  const [lines, comments, audit, documents, intakeReading] = await Promise.all([
     payload.find({
       collection: 'invoice-lines',
       where: { invoice: { equals: id } } as never,
@@ -498,6 +498,18 @@ export async function getInvoiceWithLines(rawId: string | number) {
       sort: '-createdAt',
       limit: 50,
     }),
+    // The intake record for this invoice. It already holds what the reading
+    // said, including the values that fell below the confidence bar and were
+    // therefore never written to a field — the header tab offers those back as
+    // suggestions rather than making a clerk retype a name off a document the
+    // app has already read.
+    payload.find({
+      collection: 'intake-events' as never,
+      where: { invoice: { equals: id } } as never,
+      depth: 0,
+      sort: '-createdAt',
+      limit: 1,
+    }),
   ])
 
   return {
@@ -506,6 +518,9 @@ export async function getInvoiceWithLines(rawId: string | number) {
     comments: comments.docs,
     audit: audit.docs,
     documents: documents.docs,
+    intakeReading: (intakeReading.docs[0] ?? null) as {
+      appliedValues?: { suggestions?: Record<string, { value: string; confidence: number }> } | null
+    } | null,
   }
 }
 

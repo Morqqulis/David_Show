@@ -66,6 +66,11 @@ export type InvoiceViewData = {
   comments: InvoiceViewComment[]
   audit: InvoiceViewAuditEvent[]
   documents?: InvoiceViewDocument[]
+  /**
+   * Values the scan read but was not confident enough to fill in. Offered on
+   * the header tab as suggestions; the fields themselves stay empty.
+   */
+  ocrSuggestions?: Record<string, { value: string; confidence: number }>
   // 'coding' is intentionally excluded — that tab is a separate page
   // (/coding), and the invoice page redirects ?tab=coding before this prop is
   // ever populated.
